@@ -1,0 +1,46 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filebrowser
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: filebrowser
+      role: file-transfer
+  template:
+    metadata:
+      labels:
+        app: filebrowser
+        role: file-transfer
+    spec:
+      containers:
+      - name: filebrowser #default login admin/admin
+        image: filebrowser/filebrowser
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nfsvol 
+          mountPath: /srv
+      volumes:
+        - name: nfsvol
+          persistentVolumeClaim:
+            claimName: basic
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: filebrowser-service
+  labels:
+    app: filebrowser
+    role: file-transfer
+spec:
+  type: LoadBalancer
+  ports:
+   # The port that this service serves on.
+    - port: 80
+  # Label keys and values that must match in order to receive traffic for this service.
+  selector:
+    app: filebrowser
+    role: file-transfer

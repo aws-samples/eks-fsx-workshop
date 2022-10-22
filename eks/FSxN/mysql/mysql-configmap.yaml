@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: mysql
+  labels:
+    app: mysql
+data:
+  primary.cnf: |
+    # Apply this config only on the leader.
+    [mysqld]
+    log-bin
+  replica.cnf: |
+    # Apply this config only on followers.
+    [mysqld]
+    super-read-only

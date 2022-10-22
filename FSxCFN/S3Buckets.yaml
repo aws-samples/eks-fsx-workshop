@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "S3 bucket creation for FSx for Lustre"
+
+Parameters:
+  S3BucketName: 
+    Type: String
+    Description: "S3 Bucket Name"
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true        
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+  BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: DenyHTTPTraffic
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource: 
+              !Sub 'arn:aws:s3:::${S3Bucket}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          #- Sid: 'AllowAdminUser'
+          #  Action: "s3:*"
+          #  Effect: "Allow"
+          #  Resource:
+          #    - !Sub 'arn:aws:s3:::${S3Bucket}/*'
+          #    - !GetAtt S3Bucket.Arn
+          #  Principal:
+          #    AWS:
+          #      - 
+      Bucket: !Ref S3Bucket
+Outputs:
+  S3BucketOutputName:
+    Description: S3 bucket name
+    Value: !Ref S3Bucket
