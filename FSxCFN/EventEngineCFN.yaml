@@ -965,7 +965,6 @@ Resources:
               - echo "EKS Cluster:FSxONTAP-eks is yet to be created, now creating the EKS cluster"
               - sudo mkdir -p /eks-fsx-workshop
               - sudo chmod -R 777 /eks-fsx-workshop
-              - cd /eks-fsx-workshop
               - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
               - cd /eks-fsx-workshop/eks/FSxN
               - sed -i "s/ap-southeast-2/$currentregion/g" cluster.yaml
