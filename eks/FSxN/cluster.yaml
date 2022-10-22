@@ -4,7 +4,7 @@ metadata:
   name: FSxONTAP-eks
   region: ap-southeast-2
 vpc:
-  id: "vpc-0baa2354be068c467" #replace with your vpcId
+  id: vpc-id #replace with your vpcId
   clusterEndpoints:
     privateAccess: false
     publicAccess: true # Create the EKS control planes in the public subnets
