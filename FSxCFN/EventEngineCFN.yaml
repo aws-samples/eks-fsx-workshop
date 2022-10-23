@@ -42,7 +42,7 @@ Parameters:
     Description: Do Not modify the below default value
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-## Cloud 9 Enviornments ##
+## Cloud 9 Environments ##
   Cloud9EnvironmentName:
     Description: How the name appears in the console
     Type: String
@@ -789,7 +789,7 @@ Resources:
             yum install -y aws-cfn-bootstrap telnet jq git
             sudo su
             ## Install kubectl
-            curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.22.14/bin/linux/amd64/kubectl"
+            curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.23.13/bin/linux/amd64/kubectl"
             install -o root -g root -m 0755 kubectl /usr/sbin/kubectl
             kubectl version --client
             ## Install eksctl
@@ -810,7 +810,7 @@ Resources:
             ./prescript.sh
             rm prescript.sh
 
-## Cloud9 Enviornments Setup
+## Cloud9 Environment Setup
   EKSCloud9Environment:
     Type: AWS::Cloud9::EnvironmentEC2
     Properties:
@@ -838,7 +838,7 @@ Resources:
       DocumentType: Command
       Content:
         schemaVersion: "2.2"
-        description: Bootstrapping Cloud9 Enviornment
+        description: Bootstrapping Cloud9 Environment
         parameters:
           Cloud9EnvironmentID:
             type: String
@@ -861,7 +861,7 @@ Resources:
               - sudo su
               - yum install -y aws-cfn-bootstrap telnet jq git
               ## Install kubectl
-              - curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.22.14/bin/linux/amd64/kubectl"
+              - curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.23.13/bin/linux/amd64/kubectl"
               - install -o root -g root -m 0755 kubectl /usr/sbin/kubectl
               - kubectl version --client
               ## Install eksctl
@@ -909,7 +909,7 @@ Resources:
       DocumentType: Command
       Content:
         schemaVersion: "2.2"
-        description: Create EKS Cluster and Attach IAM role to the Cloud9 Enviornment
+        description: Create EKS Cluster and Attach IAM role to the Cloud9 Environment
         parameters:
           PublicSubnet01:
             type: String
@@ -937,7 +937,7 @@ Resources:
             description: Region Name to run the command             
         mainSteps:
         - action: aws:runShellScript
-          name: SetupCloud9Enviornments
+          name: SetupCloud9Environments
           inputs:
             runCommand:
               - echo ">>> find instance using environment Id= {{ Cloud9EnvironmentID }}"
@@ -981,7 +981,7 @@ Resources:
           name: createS3bucketsforFSxLustre
           inputs:
             runCommand:
-              - if [ `aws s3 ls |grep ^fsxl | wc -l` == 0 ];
+              - if [ `aws s3 ls |awk '{print $3}'|grep ^fsxl | wc -l` == 0 ];
               - then
               - aws eks update-kubeconfig --name FSxONTAP-eks --region {{ RegionName }}
               - random=`echo $RANDOM | md5sum | head -c 12; echo`
@@ -989,14 +989,14 @@ Resources:
               - s3_bucket_name="fsxl-${random}"
               - s3_2nd_bucket_name="fsxl-2ndregion-${random}"
               - echo "Creating S3 bucket ${s3_bucket_name}"
-              - aws cloudformation create-stack --stack-name ${s3_bucket_name} --template-body file://./S3Buckets.yaml --parameters ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} --capabilities CAPABILITY_NAMED_IAM 
+              - aws cloudformation create-stack --stack-name ${s3_bucket_name} --region {{ RegionName }} --template-body file://./S3Buckets.yaml --parameters ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} --capabilities CAPABILITY_NAMED_IAM 
               - echo "Creating S3 bucket ${s3_2nd_bucket_name}"
               - aws cloudformation create-stack --stack-name ${s3_2nd_bucket_name} --region us-east-2 --template-body file://./S3Buckets.yaml --parameters ParameterKey=S3BucketName,ParameterValue=${s3_2nd_bucket_name} --capabilities CAPABILITY_NAMED_IAM
               - echo "Creating IAM Role and Policy for S3 Cross Region Replication"
               - iam_role_name="s3-crr-${random}"
               - sed -i "s/DOC-EXAMPLE-BUCKET1/$s3_bucket_name/g" S3ReplicationIAM.yaml
               - sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml  
-              - aws cloudformation create-stack --stack-name ${iam_role_name} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
+              - aws cloudformation create-stack --stack-name ${iam_role_name} --region {{ RegionName }} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
               - echo "Creating Security Group for FSx for Lustre"
               #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSxONTAP-eks --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxL-SecurityGroup.yaml
@@ -1005,7 +1005,7 @@ Resources:
               - git checkout fsxL-SecurityGroup.yaml
               - fi
         - action: aws:runShellScript
-          name: create2ndEKSClusterinanotherregion
+          name: create2ndEKSClusterinanotherRegion
           inputs:
             runCommand:
               - if [ `aws eks list-clusters --region us-east-2 |grep FSxlustre-eks02 | wc -l` == 0 ];
@@ -1022,6 +1022,7 @@ Resources:
               - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
               - echo "Creating Security Groups for FSx for Lustre in region us-east-2"
               #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
+              - cd /eks-fsx-workshop/FSxCFN
               - sed -i "s/myVpc/$VPC_ID/g" fsxL-SecurityGroup.yaml
               #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxL-SecurityGroup.yaml
               - aws cloudformation create-stack --stack-name FSxL-SecurityGroup-02 --region us-east-2 --template-body file://./fsxL-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup02 --capabilities CAPABILITY_NAMED_IAM
@@ -1029,19 +1030,37 @@ Resources:
               - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
               - S3_BUCKET=$(aws s3 ls |grep fsxl-2nd | awk '{print$3}')
               - echo "Creating IAM Role for Service Account for FSx for Lustre 2nd Cluster"
-              - aws iam create-policy --policy-name Amazon_2nd_FSx_Lustre_CSI_Driver --policy-document file://fsx-csi-driver.json
+              - aws iam create-policy --policy-name Amazon_2nd_FSx_Lustre_CSI_Driver --region us-east-2 --policy-document file://fsx-csi-driver.json
               - eksctl create iamserviceaccount --name fsx-csi-controller-sa --namespace kube-system --cluster $CLUSTER_NAME --region us-east-2 --attach-policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Amazon_2nd_FSx_Lustre_CSI_Driver --approve 
-              - export ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
+              - sleep 120
+              - fi
+        - action: aws:runShellScript
+          name: ConfigureFSxLCSI
+          inputs:
+            runCommand:
+              - cd /eks-fsx-workshop/eks/FSxL
+              - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+              - CLUSTER_NAME="FSxlustre-eks02"
+              - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
+              - S3_BUCKET=$(aws s3 ls |grep fsxl-2nd | awk '{print$3}')
+              - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
+              - ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)            
+              - echo "Firstly checking kubectl is working fine"
+              - aws eks update-kubeconfig --name FSxlustre-eks02 --region us-east-2
+              - export KUBECONFIG="${KUBECONFIG}:/root/.kube/config"
+              - echo $KUBECONFIG
+              - echo $HOME
+              - kubectl version
+              - kubectl config get-contexts
+              - kubectl get nodes
               - echo "Deploying CSI Driver for FSx Lustre"
               - kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
               - kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
               - echo "Deploying Storage Class"
-              - cd /eks-fsx-workshop/eks/FSxL
               - sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class.yaml
               - sed -i "s/SECURITY_GROUP_ID/$SECURITY_GROUP_ID/g" fsxL-storage-class.yaml
               - sed -i "s/S3_BUCKET/$S3_BUCKET/g" fsxL-storage-class.yaml
               - kubectl apply -f fsxL-storage-class.yaml 
-              - fi
   EKSCreationAssociation:
     Type: AWS::SSM::Association
     Properties:
