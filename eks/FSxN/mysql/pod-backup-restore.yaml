@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-restore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backup-restore
+      role: backup-restore
+  template:
+    metadata:
+      labels:
+        app: backup-restore
+        role: backup-restore
+    spec:
+      containers:
+      - name: backup-restore
+        image: nginx
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: backup-restore
+          mountPath: /usr/share/trident-nas/
+      volumes:
+        - name: backup-restore
+          persistentVolumeClaim:
+            claimName: pvc-backup-restore

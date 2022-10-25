@@ -1,8 +1,8 @@
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
-  name: basic-snap
+  name: snapshot-backup-restore
 spec:
   volumeSnapshotClassName: trident-snapshotclass
   source:
-    persistentVolumeClaimName: basic
+    persistentVolumeClaimName: pvc-backup-restore
