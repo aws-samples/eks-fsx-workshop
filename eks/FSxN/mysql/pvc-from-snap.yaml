@@ -10,6 +10,6 @@ spec:
     requests:
       storage: 1Gi
   dataSource:
-    name: snap-backup-restore
+    name: snapshot-backup-restore
     kind: VolumeSnapshot
     apiGroup: snapshot.storage.k8s.io
