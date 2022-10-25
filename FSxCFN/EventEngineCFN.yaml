@@ -1069,7 +1069,9 @@ Resources:
               - sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class.yaml
               - sed -i "s/SECURITY_GROUP_ID/$SECURITY_GROUP_ID/g" fsxL-storage-class.yaml
               - sed -i "s/S3_BUCKET/$S3_BUCKET/g" fsxL-storage-class.yaml
-              - kubectl apply -f fsxL-storage-class.yaml 
+              - kubectl apply -f fsxL-storage-class.yaml
+              - sleep 10
+              - kubectl apply -f claim.yaml
   EKSCreationAssociation:
     Type: AWS::SSM::Association
     Properties:
