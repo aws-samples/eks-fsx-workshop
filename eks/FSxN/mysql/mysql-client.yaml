@@ -6,6 +6,6 @@ metadata:
 spec:
   containers:
   - name: mysql-container
-    image: alpine
-    command: ['/bin/bash','-c', "sleep 4320m"]
+    image: mysql:5.7
+    command: ['/bin/sh','-c', "sleep 4320m"]
     imagePullPolicy: IfNotPresent

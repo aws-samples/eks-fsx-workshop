@@ -461,6 +461,7 @@ Resources:
         GenerateStringKey: "password"
         PasswordLength: 12
         ExcludeCharacters: "\"@/\\"
+        ExcludePunctuation: true
       Tags:
         - Key: "Name"
           Value: "OntapFileSystem_filesystem_Password"
@@ -475,6 +476,7 @@ Resources:
         GenerateStringKey: "password"
         PasswordLength: 12
         ExcludeCharacters: "\"@/\\"
+        ExcludePunctuation: true
       Tags:
         - Key: "Name"
           Value: "OntapFileSystem_SVM_Password"
@@ -648,6 +650,7 @@ Resources:
       GenerateSecretString:
           PasswordLength: 12
           ExcludeCharacters: "\"@/\\"
+          ExcludePunctuation: true
   WindowsInstance:
     Type: 'AWS::EC2::Instance'
     DependsOn: PublicSubnet2
@@ -737,7 +740,9 @@ Resources:
               # Download Chocolatey as the Package Management Tool
               - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
               # install kubectl, helm and Visual Studio Code Chrome
-              - choco install kubernetes-cli kubernetes-helm vscode googlechrome -y
+              - choco install kubernetes-cli vscode googlechrome -y
+              # install helm v3.8
+              - choco install kubernetes-helm --version=3.8.2 -y 
               # install python3
               - choco install python3 --pre -y
               # install git
@@ -796,10 +801,12 @@ Resources:
             curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
             mv /tmp/eksctl /usr/sbin
             eksctl version
-            ## Install HELM
-            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-            chmod 755 get_helm.sh
-            ./get_helm.sh
+            ## Install HELM v3.8
+            curl -LO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
+            tar -xvf helm-v3.8.2-linux-amd64.tar.gz
+            chmod 755 linux-amd64/helm
+            cp linux-amd64/helm /usr/sbin
+            helm version
             ## Scripts
             mkdir /temp
             aws s3 sync
@@ -868,10 +875,12 @@ Resources:
               - curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
               - mv /tmp/eksctl /usr/sbin
               - eksctl version
-              ## Install HELM
-              - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-              - chmod 755 get_helm.sh
-              - ./get_helm.sh
+              ## Install HELM v3.8
+              - curl -LO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
+              - tar -xvf helm-v3.8.2-linux-amd64.tar.gz
+              - chmod 755 linux-amd64/helm
+              - cp linux-amd64/helm /usr/sbin
+              - helm version
               ## Cloning the Repo
               - sudo mkdir -p /home/ec2-user/environment/eks-fsx-workshop
               - sudo chmod -R 777 /home/ec2-user/environment/eks-fsx-workshop 
