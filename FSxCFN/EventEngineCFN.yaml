@@ -975,6 +975,8 @@ Resources:
               - sudo mkdir -p /eks-fsx-workshop
               - sudo chmod -R 777 /eks-fsx-workshop
               - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
+              - sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
+              - sudo chmod -R 777 /eks-fsx-workshop
               - cd /eks-fsx-workshop/eks/FSxN
               - sed -i "s/ap-southeast-2/$currentregion/g" cluster.yaml
               - sed -i "s/vpc-id/{{ VPCIdentifier }}/g" cluster.yaml
