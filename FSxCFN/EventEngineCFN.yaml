@@ -1010,10 +1010,12 @@ Resources:
               - aws cloudformation create-stack --stack-name ${iam_role_name} --region {{ RegionName }} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
               - echo "Creating Security Group for FSx for Lustre"
               #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSxONTAP-eks --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
+              - cp fsxL-SecurityGroup.yaml fsxL-SecurityGroup.yaml.bak
               - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxL-SecurityGroup.yaml
               #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxL-SecurityGroup.yaml
               - aws cloudformation create-stack --stack-name FSxL-SecurityGroup-01 --region {{ RegionName }} --template-body file://./fsxL-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 --capabilities CAPABILITY_NAMED_IAM 
-              - git checkout fsxL-SecurityGroup.yaml
+              - rm -f fsxL-SecurityGroup.yaml
+              - mv fsxL-SecurityGroup.yaml.bak fsxL-SecurityGroup.yaml
               - fi
         - action: aws:runShellScript
           name: create2ndEKSClusterinanotherRegion
