@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fsxl-performance
+spec:
+  containers:
+  - name: performance
+    image: amazonlinux:2
+    command: ["/bin/sh"]
+    securityContext:
+      privileged: true
+    args: ["-c", "while true; sleep 5; done"]
+    lifecycle:
+      postStart:
+        exec:
+          command: ["amazon-linux-extras", "install", "lustre2.10", "-y"]
+    volumeMounts:
+    - name: persistent-storage
+      mountPath: /data
+  volumes:
+  - name: persistent-storage
+    persistentVolumeClaim:
+      claimName: fsx-claim
