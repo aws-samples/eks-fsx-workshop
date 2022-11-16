@@ -1,3 +1,15 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pvc-backup-restore
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: trident-csi  
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
