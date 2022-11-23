@@ -1,14 +1,15 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: basic-clone
+  name: pvc-from-snap
 spec:
   accessModes:
     - ReadWriteOnce
   storageClassName: trident-csi
   resources:
     requests:
-      storage: 10Gi
+      storage: 1Gi
   dataSource:
-    kind: PersistentVolumeClaim
-    name: basic
+    name: basic-snap
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io

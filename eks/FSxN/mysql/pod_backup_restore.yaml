@@ -1,31 +1,40 @@
-# pod_performance_different_AZ.yaml
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: backup-restore
+  name: pvc-backup-restore
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
-  storageClassName: trident-csi
+  storageClassName: trident-csi  
 ---
-kind: Pod
-apiVersion: v1
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: backup-restore-pod
+  name: backup-restore
 spec:
-  volumes:
-    - name: backup-restore-trident-pv
-      persistentVolumeClaim:
-        claimName: backup-restore
-  containers:
-    - name: task-pv-container
-      image: nginx
-      ports:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backup-restore
+      role: backup-restore
+  template:
+    metadata:
+      labels:
+        app: backup-restore
+        role: backup-restore
+    spec:
+      containers:
+      - name: backup-restore
+        image: nginx
+        ports:
         - containerPort: 80
-          name: "http-server"
-      volumeMounts:
-        - mountPath: "/usr/share/trident-nas/"
-          name: backup-restore-trident-pv
+        volumeMounts:
+        - name: backup-restore
+          mountPath: /usr/share/trident-nas/
+      volumes:
+        - name: backup-restore
+          persistentVolumeClaim:
+            claimName: pvc-backup-restore
