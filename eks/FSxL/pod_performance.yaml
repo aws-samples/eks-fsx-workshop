@@ -16,3 +16,5 @@ spec:
   - name: persistent-storage
     persistentVolumeClaim:
       claimName: fsx-claim
+#  nodeSelector: # to make sure the pod stays in the same region
+#    topology.ebs.csi.aws.com/zone: us-east-2c
