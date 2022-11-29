@@ -11,6 +11,6 @@ parameters:
     s3ExportPath: s3://S3_BUCKET/export
     autoImportPolicy: NEW_CHANGED_DELETED
     deploymentType: PERSISTENT_1
-    perUnitStorageThroughput: "1000" #default is 200
+    perUnitStorageThroughput: "200"
 mountOptions:
     - flock
