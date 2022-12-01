@@ -26,7 +26,7 @@ managedNodeGroups:
     # Create the EKS Managed Node Groups in the private subnets
     subnets: [ 'private-subnet1', 'private-subnet2'] #replace with your subnetId
     labels: { role: workers }
-    instanceType: c5.2xlarge
+    instanceType: c4.2xlarge
     desiredCapacity: 2
     ssh:
       enableSsm: true

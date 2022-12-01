@@ -16,9 +16,9 @@ Parameters:
   ThroughputCapacity:
     Description: Sets the throughput capacity for the file system that you're creating. Valid values are 512, 1024, and 2048 MBps.
     ConstraintDescription: Valid values are 512, 1024, and 2048 MBps.
-    AllowedValues: [512, 1024, 2048]
+    AllowedValues: [128, 512, 1024, 2048]
     Type: Number
-    Default: 1024
+    Default: 128
   WeeklyMaintenanceTime:
      Description: Specify the preferred start time to perform weekly maintenance, formatted d:HH:MM in the UTC time zone
      Default: '7:01:00'
@@ -50,7 +50,7 @@ Parameters:
   ClientInstanceType:
     Description: The type of instance to connect to the environment
     Type: String
-    Default: c5.2xlarge
+    Default: c4.xlarge
   Cloud9OwnerArn:
     Description: The Amazon Resource Name (ARN) of the environment owner. This ARN can be the ARN of any AWS Identity and Access Management principal. If this value is not specified, the ARN defaults to this environment's creator.
     Type: String
@@ -1024,7 +1024,7 @@ Resources:
               - if [ `aws eks list-clusters --region us-east-2 |grep FSxlustre-eks02 | wc -l` == 0 ];
               - then
               - echo "EKS Cluster:FSxlustre-eks02 is yet to be created, now creating the EKS cluster in us-east-2"
-              - eksctl create cluster --name FSxlustre-eks02 --region us-east-2
+              - eksctl create cluster --name FSxlustre-eks02 --region us-east-2 --nodes=2 --instance-types=c4.2xlarge
               - aws eks update-kubeconfig --name FSxlustre-eks02 --region us-east-2
               - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
               - CLUSTER_NAME="FSxlustre-eks02"
