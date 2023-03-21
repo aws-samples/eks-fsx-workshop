@@ -3,7 +3,7 @@ kind: ClusterConfig
 metadata:
   name: FSxONTAP-eks
   region: ap-southeast-2
-  version: "1.25"
+  version: "1.24"
 vpc:
   id: vpc-id #replace with your vpcId
   clusterEndpoints:
