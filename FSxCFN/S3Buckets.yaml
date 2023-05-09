@@ -18,6 +18,8 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - BucketKeyEnabled: true
+      VersioningConfiguration:
+        Status: Enabled
   BucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
