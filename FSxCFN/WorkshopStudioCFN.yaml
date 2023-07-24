@@ -1012,7 +1012,7 @@ Resources:
               - if [ `aws eks list-clusters --region us-east-2 |grep FSxlustre-eks02 | wc -l` == 0 ];
               - then
               - echo "EKS Cluster:FSxlustre-eks02 is yet to be created, now creating the EKS cluster in us-east-2"
-              - eksctl create cluster --name FSxlustre-eks02 --region us-east-2 --nodes=2 --instance-types=c4.2xlarge
+              - eksctl create cluster --name FSxlustre-eks02 --region us-east-2 --nodes=2 --instance-types=c5.2xlarge
               - aws eks update-kubeconfig --name FSxlustre-eks02 --region us-east-2
               - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
               - CLUSTER_NAME="FSxlustre-eks02"
