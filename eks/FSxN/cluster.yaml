@@ -16,7 +16,7 @@ iam:
   withOIDC: true
 addons:
   - name: vpc-cni # no version is specified so it deploys the default version
-  - name: aws-ebs-csi-driver
+  # - name: aws-ebs-csi-driver # not required for this workshop
   - name: coredns
     version: latest # auto discovers the latest available
   - name: kube-proxy
