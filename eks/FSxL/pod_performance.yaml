@@ -17,4 +17,4 @@ spec:
     persistentVolumeClaim:
       claimName: fsx-claim
 #  nodeSelector:
-#    topology.ebs.csi.aws.com/zone: us-east-2c
+#    topology.kubernetes.io/zone: us-east-2c
