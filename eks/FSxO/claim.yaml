@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fsx-openzfs-claim
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: fsx-openzfs-sc
+  resources:
+    requests:
+      storage: 1200Gi
