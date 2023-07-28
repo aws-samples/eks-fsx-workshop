@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Security Groups For FSX OpenZFS"
+
+Parameters:
+  SecurityGroupName: 
+    Type: String
+    Description: "FSx OpenZFS Security Group Name"
+Resources:
+  FSxOSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref SecurityGroupName
+      VpcId: myVpc
+      GroupDescription: Security Group for FSx for OpenZFS Storage Access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 111
+          ToPort: 111
+          Description: TCP - Remote procedure call for NFS
+          #SourceSecurityGroupId: FSxOSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 111
+          ToPort: 111
+          Description: UDP - Remote procedure call for NFS 
+          #SourceSecurityGroupId: FSxOSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          Description: TCP - NFS server daemon
+          #SourceSecurityGroupId: FSxOSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 2049
+          ToPort: 2049
+          Description: UDP - NFS server daemon
+          #SourceSecurityGroupId: FSxOSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 20001 - 20003
+          ToPort: 20001 - 20003
+          Description: TCP - NFS mount, status monitor, and lock daemon
+          #SourceSecurityGroupId: FSxOSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 20001 - 20003
+          ToPort: 20001 - 20003
+          Description: UDP - NFS mount, status monitor, and lock daemon
+          #SourceSecurityGroupId: FSxOSecurityGroupID
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 65535
+          Description: Allows OpenZFS traffic between FSx for OpenZFS file servers
+          CidrIp: 0.0.0.0/0
+Outputs:
+  SecurityGroupID:
+    Description: Security Group ID
+    Value: !Ref FSxOSecurityGroup

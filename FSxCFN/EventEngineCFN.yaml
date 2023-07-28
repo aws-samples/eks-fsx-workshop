@@ -977,7 +977,7 @@ Resources:
               - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
               - sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
               - sudo chmod -R 777 /eks-fsx-workshop
-              - cd /eks-fsx-workshop/eks/FSxN
+              - cd /eks-fsx-workshop/eks
               - sed -i "s/ap-southeast-2/$currentregion/g" cluster.yaml
               - sed -i "s/vpc-id/{{ VPCIdentifier }}/g" cluster.yaml
               - sed -i "s/public-subnet-1/{{ PublicSubnet01 }}/g" cluster.yaml
@@ -1008,6 +1008,7 @@ Resources:
               - sed -i "s/DOC-EXAMPLE-BUCKET1/$s3_bucket_name/g" S3ReplicationIAM.yaml
               - sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml  
               - aws cloudformation create-stack --stack-name ${iam_role_name} --region {{ RegionName }} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
+              #Security Group for Lustre
               - echo "Creating Security Group for FSx for Lustre"
               #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSxONTAP-eks --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cp fsxL-SecurityGroup.yaml fsxL-SecurityGroup.yaml.bak
@@ -1016,6 +1017,15 @@ Resources:
               - aws cloudformation create-stack --stack-name FSxL-SecurityGroup-01 --region {{ RegionName }} --template-body file://./fsxL-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 --capabilities CAPABILITY_NAMED_IAM 
               - rm -f fsxL-SecurityGroup.yaml
               - mv fsxL-SecurityGroup.yaml.bak fsxL-SecurityGroup.yaml
+              #Security Group for OpenZFS
+              - echo "Creating Security Group for FSx for OpenZFS"
+              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSxONTAP-eks --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
+              - cp fsxO-SecurityGroup.yaml fsxO-SecurityGroup.yaml.bak
+              - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxO-SecurityGroup.yaml
+              #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxO-SecurityGroup.yaml
+              - aws cloudformation create-stack --stack-name fsxO-SecurityGroup --region {{ RegionName }} --template-body file://./fsxO-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 --capabilities CAPABILITY_NAMED_IAM 
+              - rm -f fsxO-SecurityGroup.yaml
+              - mv fsxO-SecurityGroup.yaml.bak fsxO-SecurityGroup.yaml
               - fi
         - action: aws:runShellScript
           name: create2ndEKSClusterinanotherRegion
