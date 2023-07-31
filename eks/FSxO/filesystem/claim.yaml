@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fsx-pvc
+  name: fsx-openzfs-pvc
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: fsx-sc
+  storageClassName: fsx-openzfs-sc
   resources:
     requests:
       storage: 64Gi

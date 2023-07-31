@@ -1,0 +1,29 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: fsx-openzfs-sc
+provisioner: fsx.openzfs.csi.aws.com
+parameters:
+  ResourceType: "filesystem" 
+  DeploymentType: '"SINGLE_AZ_1"' 
+  ThroughputCapacity: '64' 
+  SubnetIds: '["subnet-01ee78686b6c137e7"]'  # <<< $SUBNET_ID
+  SkipFinalBackupOnDeletion: 'true' 
+  OptionsOnDeletion: '["DELETE_CHILD_VOLUMES_AND_SNAPSHOTS"]' 
+  KmsKeyId: '"9ae5124f-7e97-49b5-b8e0-6f90658e9047"'    # <<< $FSX_KEY
+  AutomaticBackupRetentionDays: '1'
+  CopyTagsToBackups: 'false'
+  CopyTagsToVolumes: 'false'
+  DailyAutomaticBackupStartTime: '"00:00"'
+  DiskIopsConfiguration: '{"Iops": 300, "Mode": "USER_PROVISIONED"}'
+  RootVolumeConfiguration: '{"CopyTagsToSnapshots": false, "DataCompressionType": "NONE", "NfsExports": [{"ClientConfigurations": [{"Clients": "*", "Options": ["rw","crossmnt"]}]}], "ReadOnly": false, "RecordSizeKiB": 128, "UserAndGroupQuotas": [{"Type": "USER", "Id": 1, "StorageCapacityQuotaGiB": 10}]}'
+  WeeklyMaintenanceStartTime: '"7:09:00"'
+  SecurityGroupIds: '["sg-067dcce5fb3f14452"]'     # <<< ${SECURITY_GROUP_ID}
+  Tags: '[{"Key": "OPENZFS", "Value": "OPENZFS"}]'
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+mountOptions:
+  - nfsvers=4.1
+  - rsize=1048576
+  - wsize=1048576
+  - timeo=600

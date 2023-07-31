@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: fsx-app
+  name: fsx-openzfs-app
 spec:
   containers:
     - name: app
-      image: centos
+      image: nginx
       command: ["/bin/sh"]
       args: ["-c", "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"]
       volumeMounts:
@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: persistent-storage
       persistentVolumeClaim:
-        claimName: fsx-pvc
+        claimName: fsx-openzfs-pvc
