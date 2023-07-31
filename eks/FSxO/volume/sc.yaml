@@ -1,11 +1,11 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: fsx-vol-sc
+  name: fsx-openzfs-vol-sc
 provisioner: fsx.openzfs.csi.aws.com
 parameters:
   ResourceType: "volume" #REQUIRED
-  ParentVolumeId: '"fsvol-0783016ce6deb427f"' #REQUIRED  # <<<
+  ParentVolumeId: '"fsvol-08c57f4f39aa2552d"' #REQUIRED  # <<<
   CopyTagsToSnapshots: 'false'
   DataCompressionType: '"NONE"'
   NfsExports: '[{"ClientConfigurations": [{"Clients": "*", "Options": ["rw","crossmnt"]}]}]'
