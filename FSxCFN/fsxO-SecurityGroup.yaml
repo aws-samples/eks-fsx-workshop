@@ -38,14 +38,14 @@ Resources:
           #SourceSecurityGroupId: FSxOSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
-          FromPort: 20001 - 20003
-          ToPort: 20001 - 20003
+          FromPort: 20001
+          ToPort: 20003
           Description: TCP - NFS mount, status monitor, and lock daemon
           #SourceSecurityGroupId: FSxOSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: udp
-          FromPort: 20001 - 20003
-          ToPort: 20001 - 20003
+          FromPort: 20001 
+          ToPort: 20003
           Description: UDP - NFS mount, status monitor, and lock daemon
           #SourceSecurityGroupId: FSxOSecurityGroupID
           CidrIp: 0.0.0.0/0
