@@ -3,7 +3,7 @@ Parameters:
   VPCName:
     Description: The name of the VPC being created.
     Type: String
-    Default: "FSxONTAP-EKS-VPC"
+    Default: "FSx-eks-cluster-VPC"
 ## FSxN Parameters
   StorageCapacity:
     Default: 3072
@@ -971,9 +971,9 @@ Resources:
             runCommand:
               - export currentregion=`curl http://169.254.169.254/latest/meta-data/placement/region`
               - echo "Current Region is:$currentregion" 
-              - if [ `aws eks list-clusters --region $currentregion |grep FSxONTAP-eks | wc -l` == 0 ];
+              - if [ `aws eks list-clusters --region $currentregion |grep FSx-eks-cluster | wc -l` == 0 ];
               - then
-              - echo "EKS Cluster:FSxONTAP-eks is yet to be created, now creating the EKS cluster"
+              - echo "EKS Cluster:FSx-eks-cluster is yet to be created, now creating the EKS cluster"
               - sudo mkdir -p /eks-fsx-workshop
               - sudo chmod -R 777 /eks-fsx-workshop
               # - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
@@ -997,7 +997,7 @@ Resources:
             runCommand:
               - if [ `aws s3 ls |awk '{print $3}'|grep ^fsxl | wc -l` == 0 ];
               - then
-              - aws eks update-kubeconfig --name FSxONTAP-eks --region {{ RegionName }}
+              - aws eks update-kubeconfig --name FSx-eks-cluster --region {{ RegionName }}
               - random=`echo $RANDOM | md5sum | head -c 12; echo`
               - cd /eks-fsx-workshop/FSxCFN
               - s3_bucket_name="fsxl-${random}"
@@ -1013,7 +1013,7 @@ Resources:
               - aws cloudformation create-stack --stack-name ${iam_role_name} --region {{ RegionName }} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
               #Security Group for Lustre
               - echo "Creating Security Group for FSx for Lustre"
-              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSxONTAP-eks --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
+              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSx-eks-cluster --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cp fsxL-SecurityGroup.yaml fsxL-SecurityGroup.yaml.bak
               - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxL-SecurityGroup.yaml
               #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxL-SecurityGroup.yaml
@@ -1027,7 +1027,7 @@ Resources:
             runCommand:
               #Security Group for OpenZFS
               - echo "Creating Security Group for FSx for OpenZFS"
-              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSxONTAP-eks --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
+              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSx-eks-cluster --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cp fsxO-SecurityGroup.yaml fsxO-SecurityGroup.yaml.bak
               - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxO-SecurityGroup.yaml
               #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxO-SecurityGroup.yaml

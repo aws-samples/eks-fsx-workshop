@@ -95,7 +95,7 @@ The infrastructure comprises of an Amazon EKS cluster with three EC2 worker node
 ## Launch VPC Stack
 As you clone the referenced GitHub repo, change directory as below:
 ```
-cd mltiaz-fsxontap-eks/FSxONTAP
+cd FSxCFN
 ```
 
 Launch the CloudFormation stack to set up the network environment for both FSxONTAP and EKS cluster:
@@ -132,7 +132,7 @@ eksctl create cluster -f ./cluster.yaml
 
 ## Clean up
 ```
-eksctl delete cluster --name=FSxONTAP-eks --region <region-name>
+eksctl delete cluster --name=FSx-eks-cluster --region <region-name>
 ```
 
 ```
@@ -143,8 +143,8 @@ aws cloudformation delete-stack --stack-name EKS-FSxONTAP --region <region-name>
 aws cloudformation delete-stack --stack-name EKS-MyFSxONTAP --region <region-name>
 ```
 
-# Security 
-See [CONTRIBUTING](https://github.com/aws-samples/mltiaz-fsxontap-eks/blob/main/CONTRIBUTING.md) for more information.
+# Contributing 
+See [CONTRIBUTING](https://github.com/aws-samples/eks-fsx-workshop/blob/main/CONTRIBUTING.md) for more information.
 
 # License
 This library is licensed under the MIT-0 License. See the LICENSE file.
