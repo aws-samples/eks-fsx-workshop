@@ -14,50 +14,50 @@ The infrastructure comprises of an Amazon EKS cluster with three EC2 worker node
 
 ## Project Structure
 
-<!-- ```
-.
-├── FSxONTAP                                # Holds CloudFormation templates for creating the network environment and FSxONTAP file system
-│   ├── FSxONTAP.yaml                       # CloudFormation template for creating FSxONTAP File System
-│   └── vpc-subnets.yaml                    # CloudFormation template for creating a VPC with two public and private subnets
-├── eks                                     # Holds artifacts for creating EKS Cluster and K8S resources to be deployed
-│   ├── cluster.yaml                        # Config file for creating an EKS cluster with eksctl
-│   └── backend-ontap-nas.yaml              # YAML file for configuring backend settings of Trident CSI
-│   └── storage-class-csi-nas.yaml          # YAML file for creating storage class 
-│   └── svm_secret.yaml                     # YAML file for creating a k8s secret that stores credentials of FSxONTAP
-│   └── pvc-trident.yaml                    # A sample YAML file for creating PVC for trident CSI
-│   └── pod_performance_same_AZ.yaml        # A YAML file for running a pod in the same AZ as the FSxONTAP File System for measuring storage performace of FSxONTAP
-│   └── pod_performance_different_AZ.yaml.  # A YAML file for running a pod in a different AZ as the FSxONTAP File System for measuring storage performace of FSxONTAP
-│   └── mysql                               # Holds MySQL artifacts for K8S
-|       ├── mysql-configmap.yaml
-|       └── mysql-service.yaml
-|       └── mysql-statefulset.yaml
-└── ...
-``` -->
-
-
 ```
 .
 ├── Architecture.png
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
-├── FSxCFN                                     # Holds CloudFormation templates for creating the network environment and FSxONTAP file system
-│   ├── EventEngineCFN.yaml
-│   ├── FSxONTAP.yaml                          # CloudFormation template for creating FSxONTAP File System
+├── FSxCFN
+│   ├── FSxONTAP.yaml
 │   ├── S3Buckets.yaml
 │   ├── S3ReplicationIAM.yaml
 │   ├── WorkshopStudioCFN.yaml
 │   ├── fsx-csi-driver.json
 │   ├── fsxL-SecurityGroup.yaml
-│   └── vpc-subnets.yaml                      # CloudFormation template for creating a VPC with two public and private subnets
+│   ├── fsxZ-SecurityGroup.yaml
+│   └── vpc-subnets.yaml
+├── LICENSE
+├── README.md
+├── docs
+│   ├── 5.deploy-trident-operator.md
+│   ├── 6.provision-trident-volume-and-storage-class.md
+│   ├── 7.create-clones-and-snapshots.md
+│   └── images
+│       ├── SVM_01.png
+│       ├── admin.png
+│       ├── file.png
+│       ├── file1.png
+│       ├── file2.png
+│       ├── filebrowser.png
+│       ├── sample.png
+│       ├── sample1.png
+│       ├── sample2.png
+│       ├── secrets_manager_01.png
+│       ├── volume01.png
+│       ├── volume02.png
+│       ├── volume03.png
+│       └── volume04.png
 └── eks
-    ├── FSxL                                  # Holds FSx for Luster artifacts for K8S
+    ├── FSxL
     │   ├── claim.yaml
     │   ├── fsxL-storage-class.yaml
     │   ├── pod.yaml
     │   └── pod_performance.yaml
-    ├── FSxN                                  # Holds FSx for NetApp ONTAP artifacts for K8S
-    │   ├── backend-ontap-nas.yaml            # YAML file for configuring backend settings of Trident CSI
-    │   ├── mysql                             # Holds MySQL artifacts for K8S
+    ├── FSxN
+    │   ├── backend-ontap-nas.yaml
+    │   ├── mysql
     │   │   ├── mysql-client.yaml
     │   │   ├── mysql-configmap.yaml
     │   │   ├── mysql-service.yaml
@@ -66,17 +66,23 @@ The infrastructure comprises of an Amazon EKS cluster with three EC2 worker node
     │   │   ├── pvc-from-snap.yaml
     │   │   ├── snapshot-class.yaml
     │   │   └── snapshot.yaml
-    │   ├── pod_performance_different_AZ.yaml   # A YAML file for running a pod in a different AZ as the FSxONTAP File System for measuring storage performace of FSxONTAP
-    │   ├── pod_performance_same_AZ.yaml        # A YAML file for running a pod in the same AZ as the FSxONTAP File System for measuring storage performace of FSxONTAP
-    │   ├── pvc-trident.yaml                    # A sample YAML file for creating PVC for trident CSI
-    │   ├── storage-class-csi-nas.yaml          # YAML file for creating storage class 
-    │   └── svm_secret.yaml                     # YAML file for creating a k8s secret that stores credentials of FSxONTAP
-    ├── FSxO                                    # Holds OpenFSX artifacts for K8S
-    │   ├── claim.yaml
-    │   ├── fsxL-storage-class.yaml
-    │   ├── pod.yaml
-    │   └── pod_performance.yaml
-    └── cluster.yaml                            # Config file for creating an EKS cluster with eksctl
+    │   ├── pod_performance_different_AZ.yaml
+    │   ├── pod_performance_same_AZ.yaml
+    │   ├── pvc-trident.yaml
+    │   ├── storage-class-csi-nas.yaml
+    │   └── svm_secret.yaml
+    ├── FSxZ
+    │   ├── filesystem
+    │   │   ├── delete_me_sc.yaml
+    │   │   ├── fsxZ-storage-claim.yaml
+    │   │   ├── fsxZ-storage-class.yaml
+    │   │   └── pod-fsxZ-filesystem.yaml
+    │   └── volume
+    │       ├── delete_me_sc.yaml
+    │       ├── fsxZ-volume-claim.yaml
+    │       ├── fsxZ-volume-storage-class.yaml
+    │       └── pod-fsxZ-vol.yaml
+    └── cluster.yaml
 ```
 
 ## Prerequisites

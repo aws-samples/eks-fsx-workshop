@@ -6,7 +6,7 @@ Parameters:
     Type: String
     Description: "FSx OpenZFS Security Group Name"
 Resources:
-  FSxOSecurityGroup:
+  FSxZSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: !Ref SecurityGroupName
@@ -17,37 +17,37 @@ Resources:
           FromPort: 111
           ToPort: 111
           Description: TCP - Remote procedure call for NFS
-          #SourceSecurityGroupId: FSxOSecurityGroupID
+          #SourceSecurityGroupId: FSxZSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: udp
           FromPort: 111
           ToPort: 111
           Description: UDP - Remote procedure call for NFS 
-          #SourceSecurityGroupId: FSxOSecurityGroupID
+          #SourceSecurityGroupId: FSxZSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 2049
           ToPort: 2049
           Description: TCP - NFS server daemon
-          #SourceSecurityGroupId: FSxOSecurityGroupID
+          #SourceSecurityGroupId: FSxZSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: udp
           FromPort: 2049
           ToPort: 2049
           Description: UDP - NFS server daemon
-          #SourceSecurityGroupId: FSxOSecurityGroupID
+          #SourceSecurityGroupId: FSxZSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 20001
           ToPort: 20003
           Description: TCP - NFS mount, status monitor, and lock daemon
-          #SourceSecurityGroupId: FSxOSecurityGroupID
+          #SourceSecurityGroupId: FSxZSecurityGroupID
           CidrIp: 0.0.0.0/0
         - IpProtocol: udp
           FromPort: 20001 
           ToPort: 20003
           Description: UDP - NFS mount, status monitor, and lock daemon
-          #SourceSecurityGroupId: FSxOSecurityGroupID
+          #SourceSecurityGroupId: FSxZSecurityGroupID
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
@@ -58,4 +58,4 @@ Resources:
 Outputs:
   SecurityGroupID:
     Description: Security Group ID
-    Value: !Ref FSxOSecurityGroup
+    Value: !Ref FSxZSecurityGroup

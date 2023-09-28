@@ -1,4 +1,4 @@
-#fsxO-storage-class.yaml
+#fsxZ-storage-class.yaml
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:

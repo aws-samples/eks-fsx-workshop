@@ -50,11 +50,12 @@ Parameters:
   ClientInstanceType:
     Description: The type of instance to connect to the environment
     Type: String
-    Default: c4.xlarge
+    Default: c5.xlarge # Cheaper and more performant then c4
   Cloud9OwnerArn:
     Description: The Amazon Resource Name (ARN) of the environment owner. This ARN can be the ARN of any AWS Identity and Access Management principal. If this value is not specified, the ARN defaults to this environment's creator.
     Type: String
-    Default: none
+    Default: eks-fsx-workshop-admin/Participant
+    # Default: "none"
 Mappings:
   SubnetConfig:
     VPC:
@@ -67,7 +68,6 @@ Mappings:
       CIDR: "10.0.100.0/24"
     Public2:
       CIDR: "10.0.101.0/24"
-
     # This mapping accounts for the scenario when certain AZs
     # are not available to use (this differs on a per account
     # per customer basis). E.g., if the 'b' AZ is not available
@@ -583,7 +583,6 @@ Resources:
                 - !Sub "arn:aws:iam::${AWS::AccountId}:root"
                 - !Sub "arn:aws:iam::${AWS::AccountId}:user/WSControlPlaneUser"
                 - !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant"
-                #- !Sub "arn:aws:iam::${AWS::AccountId}:user/haofeif"
         Version: '2012-10-17'
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
@@ -724,10 +723,13 @@ Resources:
           name: 2installawscli
           inputs:
             runCommand:
-               #- Invoke-WebRequest "https://awscli.amazonaws.com/AWSCLIV2.msi" -OutFile c:\AWSCLIV2.msi
-               #- msiexec.exe /i "c:\AWSCLIV2.msi" /qn
-               - Invoke-WebRequest https://s3.amazonaws.com/aws-cli/AWSCLI64.msi  -OutFile c:\AWSCLI64.msi
-               - msiexec.exe /i "c:\AWSCLI64.msi" /qn
+              #- Invoke-WebRequest "https://awscli.amazonaws.com/AWSCLIV2.msi" -OutFile c:\AWSCLIV2.msi
+              #- msiexec.exe /i "c:\AWSCLIV2.msi" /qn
+              ## Install awscli v1
+              #  - Invoke-WebRequest https://s3.amazonaws.com/aws-cli/AWSCLI64.msi  -OutFile c:\AWSCLI64.msi
+              #  - msiexec.exe /i "c:\AWSCLI64.msi" /qn
+              ## Install awscli v2
+               - msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
         #- action: aws:runPowerShellScript
         #  name: 3installchrome
         #  inputs:
@@ -754,8 +756,9 @@ Resources:
             runCommand:
               - cd 'C:\Program Files\Git\cmd'
               - New-Item "C:\Users\Administrator\Desktop\eks-fsx-workshop" -ItemType Directory
-              - .\git clone https://github.com/aws-samples/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop
-
+              #<Insert aws-samples/eks-fsx-workshop.git repo>
+              # - .\git clone https://github.com/aws-samples/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop
+              - .\git clone https://github.com/git4example/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop          
   Association:
     Type: AWS::SSM::Association
     Properties:
@@ -794,6 +797,12 @@ Resources:
             #!/bin/bash
             yum install -y aws-cfn-bootstrap telnet jq git
             sudo su
+            ## Install awscli v2
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+            echo "export PATH=/usr/local/bin:$PATH" >> ~/.bashrc
+            aws --version
             ## Install kubectl
             curl -LO "https://storage.googleapis.com/kubernetes-release/release/v1.23.13/bin/linux/amd64/kubectl"
             install -o root -g root -m 0755 kubectl /usr/sbin/kubectl
@@ -819,7 +828,7 @@ Resources:
         !If
         - Cloud9OwnerArnNotProvided
         - !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant"
-        - !Ref Cloud9OwnerArn
+        - !Join [ "", [ !Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/",!Ref Cloud9OwnerArn, ]] # arn:aws:sts::${AWS::AccountId}:assumed-role/eks-fsx-workshop-admin/Participant
       Description: Use this to work with EKS FSx Labs
       InstanceType: !Ref ClientInstanceType
       SubnetId: !Ref PublicSubnet2
@@ -876,7 +885,9 @@ Resources:
               ## Cloning the Repo
               - sudo mkdir -p /home/ec2-user/environment/eks-fsx-workshop
               - sudo chmod -R 777 /home/ec2-user/environment/eks-fsx-workshop 
-              - git clone https://github.com/aws-samples/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
+              #<Insert aws-samples/eks-fsx-workshop.git repo>
+              # - git clone https://github.com/aws-samples/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
+              - git clone https://github.com/git4example/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
               - sudo chown -R ec2-user:ec2-user /home/ec2-user/environment/eks-fsx-workshop
               # aws environment to share to different users
               - echo "Sharing the Cloud9 {{ Cloud9EnvironmentID }} to {{ SharedUserARN01 }}"
@@ -892,7 +903,8 @@ Resources:
       Parameters:
         Cloud9EnvironmentID: [!Ref EKSCloud9Environment ]
         RegionName: [!Sub "${AWS::Region}"]
-        SharedUserARN01: [!Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/eks-fsx-workshop-admin/Participant"]
+        SharedUserARN01: [!Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant"]
+        # SharedUserARN01: [!Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/eks-fsx-workshop-admin/Participant"]
         #SharedUserARN02: [!Sub "arn:aws:sts::${AWS::AccountId}:assumed-role/WSParticipantRole/Participant"]
       Targets:
       - Key: tag:Cloud9Instance
@@ -966,7 +978,9 @@ Resources:
               - echo "EKS Cluster:FSx-eks-cluster is yet to be created, now creating the EKS cluster"
               - sudo mkdir -p /eks-fsx-workshop
               - sudo chmod -R 777 /eks-fsx-workshop
-              - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
+              #<Insert aws-samples/eks-fsx-workshop.git repo>
+              # - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
+              - git clone https://github.com/git4example/eks-fsx-workshop /eks-fsx-workshop
               - sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
               - sudo chmod -R 777 /eks-fsx-workshop
               - cd /eks-fsx-workshop/eks
@@ -976,6 +990,12 @@ Resources:
               - sed -i "s/public-subnet-2/{{ PublicSubnet02 }}/g" cluster.yaml
               - sed -i "s/private-subnet1/{{ PrivateSubnet01 }}/g" cluster.yaml
               - sed -i "s/private-subnet2/{{ PrivateSubnet02 }}/g" cluster.yaml
+              - echo "Printing the awscli version"
+              - aws --version
+              - echo "Printing the Caller identity"
+              - aws sts get-caller-identity --region $currentregion
+              - echo "Printing the eksctl version"
+              - eksctl version
               - echo "Printing the Cluster File"
               - cat cluster.yaml
               - eksctl create cluster -f ./cluster.yaml
@@ -989,8 +1009,8 @@ Resources:
               - aws eks update-kubeconfig --name FSx-eks-cluster --region {{ RegionName }}
               - random=`echo $RANDOM | md5sum | head -c 12; echo`
               - cd /eks-fsx-workshop/FSxCFN
-              - s3_bucket_name="fsxl-${random}"
-              - s3_2nd_bucket_name="fsxl-2ndregion-${random}"
+              - s3_bucket_name="fsx-luster-bucket-${random}"
+              - s3_2nd_bucket_name="fsx-luster-bucket-2ndregion-${random}"
               - echo "Creating S3 bucket ${s3_bucket_name}"
               - aws cloudformation create-stack --stack-name ${s3_bucket_name} --region {{ RegionName }} --template-body file://./S3Buckets.yaml --parameters ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} --capabilities CAPABILITY_NAMED_IAM 
               - echo "Creating S3 bucket ${s3_2nd_bucket_name}"
@@ -1000,6 +1020,7 @@ Resources:
               - sed -i "s/DOC-EXAMPLE-BUCKET1/$s3_bucket_name/g" S3ReplicationIAM.yaml
               - sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml  
               - aws cloudformation create-stack --stack-name ${iam_role_name} --region {{ RegionName }} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
+              #Security Group for Lustre
               - echo "Creating Security Group for FSx for Lustre"
               #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSx-eks-cluster --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cp fsxL-SecurityGroup.yaml fsxL-SecurityGroup.yaml.bak
@@ -1009,6 +1030,20 @@ Resources:
               - rm -f fsxL-SecurityGroup.yaml
               - mv fsxL-SecurityGroup.yaml.bak fsxL-SecurityGroup.yaml
               - fi
+        - action: aws:runShellScript
+          name: createSGforFSxOpenZFS
+          inputs:
+            runCommand:             
+              - cd /eks-fsx-workshop/FSxCFN
+              #Security Group for OpenZFS
+              - echo "Creating Security Group for FSx for OpenZFS"
+              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSx-eks-cluster --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
+              - cp fsxZ-SecurityGroup.yaml fsxZ-SecurityGroup.yaml.bak
+              - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxZ-SecurityGroup.yaml
+              #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxZ-SecurityGroup.yaml
+              - aws cloudformation create-stack --stack-name fsxZ-SecurityGroup --region {{ RegionName }} --template-body file://./fsxZ-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxOSecurityGroup --capabilities CAPABILITY_NAMED_IAM 
+              - rm -f fsxZ-SecurityGroup.yaml
+              - mv fsxZ-SecurityGroup.yaml.bak fsxZ-SecurityGroup.yaml
         - action: aws:runShellScript
           name: create2ndEKSClusterinanotherRegion
           inputs:
@@ -1025,6 +1060,7 @@ Resources:
               - eksctl utils associate-iam-oidc-provider --cluster $CLUSTER_NAME --region us-east-2 --approve
               - VPC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.vpcId" --output text)
               - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
+              #Security Group for Lustre
               - echo "Creating Security Groups for FSx for Lustre in region us-east-2"
               #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cd /eks-fsx-workshop/FSxCFN
@@ -1033,7 +1069,7 @@ Resources:
               - aws cloudformation create-stack --stack-name FSxL-SecurityGroup-02 --region us-east-2 --template-body file://./fsxL-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup02 --capabilities CAPABILITY_NAMED_IAM
               - sleep 120
               - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
-              - S3_BUCKET=$(aws s3 ls |grep fsxl-2nd | awk '{print$3}')
+              - S3_BUCKET=$(aws s3 ls |grep fsx-luster-bucket-2ndregion | awk '{print$3}')
               - echo "Creating IAM Role for Service Account for FSx for Lustre 2nd Cluster"
               - aws iam create-policy --policy-name Amazon_2nd_FSx_Lustre_CSI_Driver --region us-east-2 --policy-document file://fsx-csi-driver.json
               - eksctl create iamserviceaccount --name fsx-csi-controller-sa --namespace kube-system --cluster $CLUSTER_NAME --region us-east-2 --attach-policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Amazon_2nd_FSx_Lustre_CSI_Driver --approve 
@@ -1047,7 +1083,7 @@ Resources:
               - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
               - CLUSTER_NAME="FSxlustre-eks02"
               - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
-              - S3_BUCKET=$(aws s3 ls |grep fsxl-2nd | awk '{print$3}')
+              - S3_BUCKET=$(aws s3 ls |grep fsx-luster-bucket-2ndregion | awk '{print$3}')
               - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
               - ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)            
               - echo "Firstly checking kubectl is working fine"
@@ -1059,7 +1095,8 @@ Resources:
               - kubectl config get-contexts
               - kubectl get nodes
               - echo "Deploying CSI Driver for FSx Lustre"
-              - kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
+              # kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
+              - kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-0.10"
               - kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
               - echo "Deploying Storage Class"
               - sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class.yaml

@@ -1,4 +1,4 @@
-#fsxO-storage-claim.yaml
+#fsxZ-storage-claim.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
