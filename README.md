@@ -23,7 +23,7 @@ The infrastructure comprises of an Amazon EKS cluster with three EC2 worker node
 │   ├── FSxONTAP.yaml
 │   ├── S3Buckets.yaml
 │   ├── S3ReplicationIAM.yaml
-│   ├── WorkshopStudioCFN.yaml
+│   ├── FSXWorkshopOnEKS.yaml
 │   ├── fsx-csi-driver.json
 │   ├── fsxL-SecurityGroup.yaml
 │   ├── fsxZ-SecurityGroup.yaml
