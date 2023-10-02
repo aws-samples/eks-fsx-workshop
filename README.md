@@ -144,6 +144,8 @@ cd eks-fsx-workshop/FSxCFN
 aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region <region-name>
 ```
 
+  ![VPCCFN](/images/VPCCFN.png)
+
 ## 3. Create an Amazon EKS cluster
 
 In this walkthrough, we are going to create the EKS cluster with a managed node group that contains two worker nodes residing across the two private subnets created in step 2. In the `cluster.yaml` file, substitute the VPC ID and subnet IDs based on the output of the CloudFormation stack launched in step 2.
@@ -164,6 +166,7 @@ press `i`
 
 3. Change the region to your preferred region, VPC ID, Public Subnet and Private Subnet as shown in the below screenshot
 
+   ![VPCREGION](/images/vpcregion.png) 
 
 4. Press ESC and type `:wq` then press enter.
 
@@ -202,6 +205,8 @@ aws cloudformation create-stack \
 2. Change the region that you are operating
 
 3. Enter the values that was captured earlier during VPC creation as show in the below screenshot
+  
+   ![VPCCFN](/images/VPCCFN.png)
 
 4. Throughput capacity input is 128MB/s. However if you wish to increase it the supported values are 256, 512, 1024 and 2048. 
 
@@ -211,15 +216,15 @@ aws cloudformation create-stack \
 This CloudFormation stack will take approximately 45 minutes to complete; feel free to move to step 4 while waiting for the file system to be deployed.
 
 After the completion of the deployment, we can verify in the following screenshot that the FSx NetApp ONTAP file system and Storage Virtual Machine (SVM) are created.
-![FSX01](/static/images/fsx01.png)
+![FSX01](/images/fsx01.png)
 
 Take a look at the details of the FSx for NetApp ONTAP file system. We can see that the file system has a primary subnet and a standby subnet.
 
-![ONTAP04](/static/images/ontap4.png)
+![ONTAP04](/images/ontap4.png)
 
 SVM is also created.
 
-![ONTAP05](/static/images/ontap5.png)
+![ONTAP05](/images/ontap5.png)
 
 
 ## 5. Create needful resources for Amazon FSx for Lustre file system
