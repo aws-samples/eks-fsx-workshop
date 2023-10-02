@@ -133,6 +133,13 @@ git clone https://github.com/aws-samples/eks-fsx-workshop.git
 
 There are two folders that you need to reference in the following steps, with the “eks” folder containing all manifests files related to the eks cluster resources and “FSxCFN” Cloudformation templates for spinning up the VPC environment and FSx File System.
 
+Set region variables : 
+
+```bash
+export REGION=<region name>
+export REGION_2=us-east-2
+```
+
 ## 2. Create a VPC environment for Amazon EKS and FSx (Optional)
 
 Create a new VPC with two private subnets and two public subnets using CloudFormation. This step is optional, and an existing VPC can be reused for the Amazon EKS cluster and the FSx file system.
@@ -141,7 +148,7 @@ Launch the CloudFormation stack to set up the network environment for both FSx a
 
 ```bash
 cd eks-fsx-workshop/FSxCFN
-aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region <region-name>
+aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region $REGION
 ```
 
   ![VPCCFN](/images/VPCCFN.png)
@@ -175,6 +182,14 @@ Create the EKS cluster by running the following command:
 eksctl create cluster -f ./cluster.yaml
 ```
 
+- Create Cluster in us-east-2 region for testing cross region desaster recovery and OpenZFS
+
+```bash
+eksctl create cluster --name FSx-eks-cluster02 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
+```
+
+The above EKS Cluster creation will complete approximately in 30 Mins. 
+
 
 ## 4. Create an Amazon FSx for NetApp ONTAP file system
 
@@ -188,7 +203,7 @@ Run the following CLI command to create the Amazon FSx for NetApp ONTAP file sys
 aws cloudformation create-stack \
   --stack-name EKS-FSXONTAP \
   --template-body file://./FSxONTAP.yaml \
-  --region <region-name> \
+  --region $REGION \
   --parameters \
   ParameterKey=Subnet1ID,ParameterValue=[your_preferred_subnet1] \
   ParameterKey=Subnet2ID,ParameterValue=[your_preferred_subnet2] \
@@ -229,13 +244,6 @@ SVM is also created.
 
 ## 5. Create needful resources for Amazon FSx for Lustre file system
 
-- Create Cluster in us-east-2 region for testing cross region desaster recovery
-
-```bash
-eksctl create cluster --name FSx-eks-cluster02 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
-```
-
-The above EKS Cluster creation will complete approximately in 30 Mins. 
 
 - Creating S3 bucket for FSx Luster in primary region
 
@@ -249,7 +257,7 @@ s3_2nd_bucket_name="fsx-luster-bucket-2ndregion-${random}"
 ```bash
 aws cloudformation create-stack \
   --stack-name ${s3_bucket_name} \
-  --region <region-name> \
+  --region $REGION \
   --template-body file://./S3Buckets.yaml \
   --parameters \
   ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} \
@@ -280,7 +288,7 @@ sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml
 ```bash
 aws cloudformation create-stack \
   --stack-name ${iam_role_name} \
-  --region <region-name> \
+  --region $REGION \
   --template-body file://./S3ReplicationIAM.yaml \
   --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} \
   --capabilities CAPABILITY_NAMED_IAM
@@ -305,7 +313,7 @@ sed -i "s/myVpc/$VPCIdentifier/g" fsxL-SecurityGroup.yaml
 ```bash
 aws cloudformation create-stack \
   --stack-name FSxL-SecurityGroup-01 \
-  --region <region-name> \
+  --region $REGION \
   --template-body file://./fsxL-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 \
   --capabilities CAPABILITY_NAMED_IAM 
@@ -336,7 +344,7 @@ Else :
 ```bash
 aws cloudformation create-stack \
   --stack-name fsxZ-SecurityGroup \
-  --region <region-name> \
+  --region $REGION \
   --template-body file://./fsxZ-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxOSecurityGroup \
   --capabilities CAPABILITY_NAMED_IAM 
