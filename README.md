@@ -120,18 +120,18 @@ For this walkthrough, you should have the following prerequisites:
   - kubectl: https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
   - Helm 3: https://docs.aws.amazon.com/eks/latest/userguide/helm.html
 
-::alert[For Helm please select v3.8, instead of any later version as it might experience issues]
 
-1. The AWS Command Line Interface (AWS CLI) configured in your working environment. For information about installing and configuring the AWS CLI, see Installing or updating the latest version of the AWS CLI. https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+3. The AWS Command Line Interface (AWS CLI) configured in your working environment. For information about installing and configuring the AWS CLI, see Installing or updating the latest version of the AWS CLI. https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
 ## 1. Clone the Github repository
 
 You can find the CloudFormation template and relevant code in this GitHub repo. Run the following command to clone the repository into your local workstation.
 
-::code[git clone https://github.com/aws-samples/eks-fsx-workshop.git]{language=bash showLineNumbers=false showCopyAction=true}
+```bash
+git clone https://github.com/aws-samples/eks-fsx-workshop.git
+```
 
-
-There are two folders that you need to reference in the following steps, with the “eks” folder containing all manifests files related to the eks cluster resources and “FSx” Cloudformation templates for spinning up the VPC environment and FSxONTAP File System.
+There are two folders that you need to reference in the following steps, with the “eks” folder containing all manifests files related to the eks cluster resources and “FSxCFN” Cloudformation templates for spinning up the VPC environment and FSx File System.
 
 ## 2. Create a VPC environment for Amazon EKS and FSx (Optional)
 
@@ -139,12 +139,10 @@ Create a new VPC with two private subnets and two public subnets using CloudForm
 
 Launch the CloudFormation stack to set up the network environment for both FSx and EKS cluster:
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 cd eks-fsx-workshop/FSxCFN
 aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region <region-name>
-:::
-
-![VPCCFN](/static/images/VPCCFN.png)
+```
 
 ## 3. Create an Amazon EKS cluster
 
@@ -152,24 +150,27 @@ In this walkthrough, we are going to create the EKS cluster with a managed node 
 
 1. Current working directory is 
 
-::code[cd /eks-fsx-workshop/eks]{language=bash showLineNumbers=false showCopyAction=true} 
+```bash
+cd /eks-fsx-workshop/eks
+```
       
-
 2.  Edit the file cluster.yaml and replace the region, vpcid, private subnet and public subnet
 
-::code[vi cluster.yaml]{language=bash showLineNumbers=false showCopyAction=true}
+```bash
+vi cluster.yaml
+```
      
 press `i`
 
 3. Change the region to your preferred region, VPC ID, Public Subnet and Private Subnet as shown in the below screenshot
 
-![VPCREGION](/static/images/vpcregion.png) 
 
 4. Press ESC and type `:wq` then press enter.
 
 Create the EKS cluster by running the following command:
-
-::code[eksctl create cluster -f ./cluster.yaml]{language=bash showLineNumbers=false showCopyAction=true}
+```bash
+eksctl create cluster -f ./cluster.yaml
+```
 
 
 ## 4. Create an Amazon FSx for NetApp ONTAP file system
@@ -178,7 +179,9 @@ The following steps to create the Amazon FSx for Netapp ONTAP Filesystem. If you
 
 Run the following CLI command to create the Amazon FSx for NetApp ONTAP file system. (Note that you need to modify the parameters based on your VPC environment created as above.)
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+1. Copy the following CLI command in a notepad to modify
+   
+```bash
 aws cloudformation create-stack \
   --stack-name EKS-FSXONTAP \
   --template-body file://./FSxONTAP.yaml \
@@ -194,21 +197,13 @@ aws cloudformation create-stack \
   ParameterKey=FsxAdminPassword,ParameterValue=[Define password] \
   ParameterKey=SvmAdminPassword,ParameterValue=[Define password] \
   --capabilities CAPABILITY_NAMED_IAM
-:::
-
-1. Copy the above CLI command in a notepad to modify
+```
 
 2. Change the region that you are operating
 
 3. Enter the values that was captured earlier during VPC creation as show in the below screenshot
 
-![VPCCFN](/static/images/VPCCFN.png)
-
 4. Throughput capacity input is 128MB/s. However if you wish to increase it the supported values are 256, 512, 1024 and 2048. 
-
-:::alert{header="Important" type="warning"}
-You will be charged based on the selected throughput capacity
-:::
 
 5. Default storage capacity for this deployment type is 1024
 
@@ -231,20 +226,22 @@ SVM is also created.
 
 - Create Cluster in us-east-2 region for testing cross region desaster recovery
 
-::code[eksctl create cluster --name FSx-eks-cluster02 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge]{language=bash showLineNumbers=false showCopyAction=true}
+```bash
+eksctl create cluster --name FSx-eks-cluster02 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
+```
 
 The above EKS Cluster creation will complete approximately in 30 Mins. 
 
 - Creating S3 bucket for FSx Luster in primary region
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 random=`tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo ''`
 s3_bucket_name="fsx-luster-bucket-${random}"
 s3_2nd_bucket_name="fsx-luster-bucket-2ndregion-${random}"
-:::
+```
 
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 aws cloudformation create-stack \
   --stack-name ${s3_bucket_name} \
   --region <region-name> \
@@ -252,11 +249,11 @@ aws cloudformation create-stack \
   --parameters \
   ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} \
   --capabilities CAPABILITY_NAMED_IAM 
-:::
+```
 
 - Creating S3 bucket in 2nd region `us-east-2`
   
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 aws cloudformation create-stack \
   --stack-name ${s3_2nd_bucket_name} \
   --region $REGION_2 \
@@ -264,57 +261,59 @@ aws cloudformation create-stack \
   --parameters \
   ParameterKey=S3BucketName,ParameterValue=${s3_2nd_bucket_name} \
   --capabilities CAPABILITY_NAMED_IAM 
-:::
+```
 
 
 - Creating IAM Role and Policy for S3 Cross Region Replication
   
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 iam_role_name="s3-crr-${random}"
 sed -i "s/DOC-EXAMPLE-BUCKET1/$s3_bucket_name/g" S3ReplicationIAM.yaml
 sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml  
-:::
+```
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 aws cloudformation create-stack \
   --stack-name ${iam_role_name} \
   --region <region-name> \
   --template-body file://./S3ReplicationIAM.yaml \
   --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} \
   --capabilities CAPABILITY_NAMED_IAM
-:::
+```
 
 - Creating Security Group for FSx for Lustre
 
 If you had created VPC stack in step 2 then run below command
 
-::code[VPCIdentifier=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)]{language=bash showLineNumbers=false showCopyAction=true}
+
+```bash
+VPCIdentifier=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)
+```
 
 Else : 
-::code[VPCIdentifier=<your VPC id>]{language=bash showLineNumbers=false showCopyAction=true}
+`VPCIdentifier=<your VPC id>`
 
-::code[sed -i "s/myVpc/$VPCIdentifier/g" fsxL-SecurityGroup.yaml]{language=bash showLineNumbers=false showCopyAction=true}
+```bash
+sed -i "s/myVpc/$VPCIdentifier/g" fsxL-SecurityGroup.yaml
+```
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 aws cloudformation create-stack \
   --stack-name FSxL-SecurityGroup-01 \
   --region <region-name> \
   --template-body file://./fsxL-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 \
   --capabilities CAPABILITY_NAMED_IAM 
-:::
+```
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 aws cloudformation create-stack \
   --stack-name FSxL-SecurityGroup-02 \
   --region $REGION_2 \
   --template-body file://./fsxL-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup02 \
   --capabilities CAPABILITY_NAMED_IAM 
-:::
-
-
-
+```
 
 ## 6. Create needful resources for Amazon FSx for OpenZFS 
 
@@ -322,30 +321,27 @@ Create Security Group for OpenZFS
 
 If you had created VPC stack in step 2 then run below command
 
-::code[VPCIdentifier=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)]{language=bash showLineNumbers=false showCopyAction=true}
+`VPCIdentifier=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)`
 
 Else : 
-::code[VPCIdentifier=<your VPC id>]{language=bash showLineNumbers=false showCopyAction=true}
+`VPCIdentifier=<your VPC id>`
               
-::code[sed -i "s/myVpc/$VPCIdentifier/g" fsxZ-SecurityGroup.yaml]{language=bash showLineNumbers=false showCopyAction=true}
+`sed -i "s/myVpc/$VPCIdentifier/g" fsxZ-SecurityGroup.yaml`
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 aws cloudformation create-stack \
   --stack-name fsxZ-SecurityGroup \
   --region <region-name> \
   --template-body file://./fsxZ-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxOSecurityGroup \
   --capabilities CAPABILITY_NAMED_IAM 
-:::
+```
 
-<Insert steps here>
-
-<Insert steps for other CFN stack creation>
 
 ## Clean up
 Run these commands one by one in given sequence : 
 
-:::code[]{language=bash showLineNumbers=true showCopyAction=true}
+```bash
 eksctl delete nodegroup --region $REGION_2  --cluster FSx-eks-cluster02 --name $(eksctl get nodegroup --cluster FSx-eks-cluster02 --region $REGION_2 --output json | jq -r .[].Name)
 eksctl delete cluster --name=FSx-eks-cluster02 --region $REGION_2 
 eksctl delete nodegroup --cluster FSx-eks-cluster --name $(eksctl get nodegroup --cluster FSx-eks-cluster --output json | jq -r .[].Name)
@@ -358,7 +354,7 @@ aws cloudformation delete-stack --stack-name ${s3_2nd_bucket_name} --region $REG
 aws cloudformation delete-stack --stack-name ${s3_bucket_name}
 aws cloudformation delete-stack --stack-name EKS-FSXONTAP
 aws cloudformation delete-stack --stack-name FSX-EKS-VPC
-:::
+```
 
 
 

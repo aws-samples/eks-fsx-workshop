@@ -1056,13 +1056,13 @@ Resources:
           name: create2ndEKSClusterinanotherRegion
           inputs:
             runCommand:
-              - if [ `aws eks list-clusters --region us-east-2 |grep FSxlustre-eks02 | wc -l` == 0 ];
+              - if [ `aws eks list-clusters --region us-east-2 |grep FSx-eks-cluster02 | wc -l` == 0 ];
               - then
-              - echo "EKS Cluster:FSxlustre-eks02 is yet to be created, now creating the EKS cluster in us-east-2"
-              - eksctl create cluster --name FSxlustre-eks02 --region us-east-2 --nodes=2 --instance-types=c5.2xlarge
-              - aws eks update-kubeconfig --name FSxlustre-eks02 --region us-east-2
+              - echo "EKS Cluster:FSx-eks-cluster02 is yet to be created, now creating the EKS cluster in us-east-2"
+              - eksctl create cluster --name FSx-eks-cluster02 --region us-east-2 --nodes=2 --instance-types=c5.2xlarge
+              - aws eks update-kubeconfig --name FSx-eks-cluster02 --region us-east-2
               - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-              - CLUSTER_NAME="FSxlustre-eks02"
+              - CLUSTER_NAME="FSx-eks-cluster02"
               - echo "Associating the OIDC Provider to EKS cluster $CLUSTER_NAME"
               - oidc_id=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5)
               - eksctl utils associate-iam-oidc-provider --cluster $CLUSTER_NAME --region us-east-2 --approve
@@ -1089,13 +1089,13 @@ Resources:
             runCommand:
               - cd /eks-fsx-workshop/eks/FSxL
               - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-              - CLUSTER_NAME="FSxlustre-eks02"
+              - CLUSTER_NAME="FSx-eks-cluster02"
               - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
               - S3_BUCKET=$(aws s3 ls |grep fsx-luster-bucket-2ndregion | awk '{print$3}')
               - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
               - ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)            
               - echo "Firstly checking kubectl is working fine"
-              - aws eks update-kubeconfig --name FSxlustre-eks02 --region us-east-2
+              - aws eks update-kubeconfig --name FSx-eks-cluster02 --region us-east-2
               - export KUBECONFIG="${KUBECONFIG}:/root/.kube/config"
               - echo $KUBECONFIG
               - echo $HOME
