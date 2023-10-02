@@ -6,20 +6,20 @@ metadata:
 provisioner: fsx.openzfs.csi.aws.com
 parameters:
   ResourceType: "filesystem" 
-  DeploymentType: '"SINGLE_AZ_1"' 
+  DeploymentType: '"MULTI_AZ_1"' 
   ThroughputCapacity: '64' 
-  SubnetIds: '["$SUBNET_ID"]'  # <<< $SUBNET_ID
+  SubnetIds: '["SUBNET_ID"]'  
   SkipFinalBackupOnDeletion: 'true' 
   OptionsOnDeletion: '["DELETE_CHILD_VOLUMES_AND_SNAPSHOTS"]' 
-  KmsKeyId: '"$FSX_KEY"'    # <<< $FSX_KEY
+  KmsKeyId: '"FSX_KEY"'    
   AutomaticBackupRetentionDays: '1'
   CopyTagsToBackups: 'false'
   CopyTagsToVolumes: 'false'
   DailyAutomaticBackupStartTime: '"00:00"'
-  DiskIopsConfiguration: '{"Iops": 300, "Mode": "USER_PROVISIONED"}'
+  DiskIopsConfiguration: '{"Iops": 3600, "Mode": "USER_PROVISIONED"}'
   RootVolumeConfiguration: '{"CopyTagsToSnapshots": false, "DataCompressionType": "NONE", "NfsExports": [{"ClientConfigurations": [{"Clients": "*", "Options": ["rw","crossmnt"]}]}], "ReadOnly": false, "RecordSizeKiB": 128, "UserAndGroupQuotas": [{"Type": "USER", "Id": 1, "StorageCapacityQuotaGiB": 10}]}'
   WeeklyMaintenanceStartTime: '"7:09:00"'
-  SecurityGroupIds: '["${SECURITY_GROUP_ID}"]'     # <<< ${SECURITY_GROUP_ID}
+  SecurityGroupIds: '["SECURITY_GROUP_ID"]'     
   Tags: '[{"Key": "OPENZFS", "Value": "OPENZFS"}]'
 reclaimPolicy: Delete
 allowVolumeExpansion: true
@@ -28,3 +28,4 @@ mountOptions:
   - rsize=1048576
   - wsize=1048576
   - timeo=600
+  

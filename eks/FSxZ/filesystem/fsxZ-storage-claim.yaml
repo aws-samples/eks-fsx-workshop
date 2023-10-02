@@ -9,4 +9,4 @@ spec:
   storageClassName: fsx-openzfs-sc
   resources:
     requests:
-      storage: 64Gi
+      storage: 1200Gi
