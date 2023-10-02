@@ -182,7 +182,7 @@ Create the EKS cluster by running the following command:
 eksctl create cluster -f ./cluster.yaml
 ```
 
-- Create Cluster in us-east-2 region for testing cross region desaster recovery and OpenZFS
+- Create Cluster in 2nd region for testing cross region desaster recovery and OpenZFS
 
 ```bash
 eksctl create cluster --name FSx-eks-cluster02 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
@@ -264,7 +264,7 @@ aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM 
 ```
 
-- Creating S3 bucket in 2nd region `us-east-2`
+- Creating S3 bucket in 2nd region 
   
 ```bash
 aws cloudformation create-stack \
