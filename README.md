@@ -140,6 +140,14 @@ export REGION=<region name>
 export REGION_2=us-east-2
 ```
 
+Set cluster variables : 
+
+```bash
+export CLUSTER_NAME_1=FSx-eks-cluster
+export CLUSTER_NAME_2=FSx-eks-cluster02
+```
+
+
 ## 2. Create a VPC environment for Amazon EKS and FSx (Optional)
 
 Create a new VPC with two private subnets and two public subnets using CloudFormation. This step is optional, and an existing VPC can be reused for the Amazon EKS cluster and the FSx file system.
@@ -185,7 +193,7 @@ eksctl create cluster -f ./cluster.yaml
 - Create Cluster in 2nd region for testing cross region desaster recovery and OpenZFS
 
 ```bash
-eksctl create cluster --name FSx-eks-cluster02 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
+eksctl create cluster --name $CLUSTER_NAME_2 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
 ```
 
 The above EKS Cluster creation will complete approximately in 30 Mins. 
@@ -355,10 +363,10 @@ aws cloudformation create-stack \
 Run these commands one by one in given sequence : 
 
 ```bash
-eksctl delete nodegroup --region $REGION_2  --cluster FSx-eks-cluster02 --name $(eksctl get nodegroup --cluster FSx-eks-cluster02 --region $REGION_2 --output json | jq -r .[].Name)
-eksctl delete cluster --name=FSx-eks-cluster02 --region $REGION_2 
-eksctl delete nodegroup --cluster FSx-eks-cluster --name $(eksctl get nodegroup --cluster FSx-eks-cluster --output json | jq -r .[].Name)
-eksctl delete cluster --name=FSx-eks-cluster 
+eksctl delete nodegroup --region $REGION_2  --cluster $CLUSTER_NAME_2 --name $(eksctl get nodegroup --cluster $CLUSTER_NAME_2 --region $REGION_2 --output json | jq -r .[].Name)
+eksctl delete cluster --name=$CLUSTER_NAME_2 --region $REGION_2 
+eksctl delete nodegroup --cluster $CLUSTER_NAME_1 --name $(eksctl get nodegroup --cluster $CLUSTER_NAME_1 --output json | jq -r .[].Name)
+eksctl delete cluster --name=$CLUSTER_NAME_1 
 aws cloudformation delete-stack --stack-name FSxL-SecurityGroup-02 --region $REGION_2
 aws cloudformation delete-stack --stack-name FSxL-SecurityGroup-01
 aws cloudformation delete-stack --stack-name fsxZ-SecurityGroup
