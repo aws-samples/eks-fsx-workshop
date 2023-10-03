@@ -168,29 +168,58 @@ In this walkthrough, we are going to create the EKS cluster with a managed node 
 1. Current working directory is 
 
 ```bash
-cd /eks-fsx-workshop/eks
+cd ../eks
 ```
       
 2.  Edit the file cluster.yaml and replace the region, vpcid, private subnet and public subnet
 
+
+![VPCREGION](/images/vpcregion.png) 
+
+If you are using your own existing VPC and subnets then copy the following CLI command in a notepad to modify it to set values.
 ```bash
-vi cluster.yaml
+VPCID=<your vpc id>
+PUBLIC_SUBNET_1=<your public subnet 1>
+PUBLIC_SUBNET_1=<your public subnet 2>
+PRIVATE_SUBNET_1=<your private subnet 1>
+PRIVATE_SUBNET_2=<your private subnet 2>
+PUBLIC_ROUTETABLE=<your public route table>
+PRIVATE_ROUTETABLE=<your private route table>
 ```
-     
-press `i`
 
-3. Change the region to your preferred region, VPC ID, Public Subnet and Private Subnet as shown in the below screenshot
+Else get values from the cloud formation stack created in Step 2 above : 
+```bash
+VPCID=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)
+VPCCIDR=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='VpcCidrBlock'].OutputValue" --output text)
+PUBLIC_SUBNET_1=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet1'].OutputValue" --output text)
+PUBLIC_SUBNET_2=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet2'].OutputValue" --output text)
+PRIVATE_SUBNET_1=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet1'].OutputValue" --output text)
+PRIVATE_SUBNET_2=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet2'].OutputValue" --output text)
+PUBLIC_ROUTETABLE=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PublicRouteTable'].OutputValue" --output text)
+PRIVATE_ROUTETABLE=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PrivateRouteTable'].OutputValue" --output text)
+```
 
-   ![VPCREGION](/images/vpcregion.png) 
+```bash
+sed -i'' -e "s/ap-southeast-2/$REGION_1/g" cluster.yaml
+sed -i'' -e "s/vpc-id/$VPCID/g" cluster.yaml
+sed -i'' -e "s/public-subnet-1/$PUBLIC_SUBNET_1/g" cluster.yaml
+sed -i'' -e "s/public-subnet-2/$PUBLIC_SUBNET_2/g" cluster.yaml
+sed -i'' -e "s/private-subnet1/$PRIVATE_SUBNET_1/g" cluster.yaml
+sed -i'' -e "s/private-subnet2/$PRIVATE_SUBNET_2/g" cluster.yaml
+```
 
-4. Press ESC and type `:wq` then press enter.
+Verify updated values : 
 
-Create the EKS cluster by running the following command:
+```bash
+cat cluster.yaml
+```
+
+- Create the EKS cluster by running the following command:
 ```bash
 eksctl create cluster -f ./cluster.yaml
 ```
 
-- Create Cluster in 2nd region for testing cross region desaster recovery and OpenZFS
+- Create EKS Cluster in 2nd region for testing cross region desaster recovery and OpenZFS
 
 ```bash
 eksctl create cluster --name $CLUSTER_NAME_2 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
@@ -205,7 +234,7 @@ The following steps to create the Amazon FSx for Netapp ONTAP Filesystem. If you
 
 Run the following CLI command to create the Amazon FSx for NetApp ONTAP file system. (Note that you need to modify the parameters based on your VPC environment created as above.)
 
-1. Copy the following CLI command in a notepad to modify
+1. Copy the following CLI command in a notepad to modify it to define your password
    
 ```bash
 aws cloudformation create-stack \
@@ -213,13 +242,13 @@ aws cloudformation create-stack \
   --template-body file://./FSxONTAP.yaml \
   --region $REGION_1 \
   --parameters \
-  ParameterKey=Subnet1ID,ParameterValue=[your_preferred_subnet1] \
-  ParameterKey=Subnet2ID,ParameterValue=[your_preferred_subnet2] \
-  ParameterKey=myVpc,ParameterValue=[your_VPC] \
-  ParameterKey=FSxONTAPRouteTable,ParameterValue=[your_routetable] \
+  ParameterKey=Subnet1ID,ParameterValue=$PRIVATE_SUBNET_1 \
+  ParameterKey=Subnet2ID,ParameterValue=$PRIVATE_SUBNET_2 \
+  ParameterKey=myVpc,ParameterValue=$VPCID \
+  ParameterKey=FSxONTAPRouteTable,ParameterValue=$PUBLIC_ROUTETABLE,$PRIVATE_ROUTETABLE \
   ParameterKey=FileSystemName,ParameterValue=EKS-myFSxONTAP \
   ParameterKey=ThroughputCapacity,ParameterValue=128 \
-  ParameterKey=FSxAllowedCIDR,ParameterValue=[your_allowed_CIDR] \
+  ParameterKey=FSxAllowedCIDR,ParameterValue=$VPCCIDR \
   ParameterKey=FsxAdminPassword,ParameterValue=[Define password] \
   ParameterKey=SvmAdminPassword,ParameterValue=[Define password] \
   --capabilities CAPABILITY_NAMED_IAM
@@ -304,18 +333,8 @@ aws cloudformation create-stack \
 
 - Creating Security Group for FSx for Lustre
 
-If you had created VPC stack in step 2 then run below command
-
-
 ```bash
-VPCIdentifier=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)
-```
-
-Else : 
-`VPCIdentifier=<your VPC id>`
-
-```bash
-sed -i "s/myVpc/$VPCIdentifier/g" fsxL-SecurityGroup.yaml
+sed -i "s/myVpc/$VPCID/g" fsxL-SecurityGroup.yaml
 ```
 
 ```bash
@@ -339,15 +358,8 @@ aws cloudformation create-stack \
 ## 6. Create needful resources for Amazon FSx for OpenZFS 
 
 Create Security Group for OpenZFS
-
-If you had created VPC stack in step 2 then run below command
-
-`VPCIdentifier=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)`
-
-Else : 
-`VPCIdentifier=<your VPC id>`
               
-`sed -i "s/myVpc/$VPCIdentifier/g" fsxZ-SecurityGroup.yaml`
+`sed -i "s/myVpc/$VPCID/g" fsxZ-SecurityGroup.yaml`
 
 ```bash
 aws cloudformation create-stack \

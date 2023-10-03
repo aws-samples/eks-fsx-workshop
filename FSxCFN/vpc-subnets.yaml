@@ -242,7 +242,7 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet2
 
-  PrivateRouteTable1:
+  PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
@@ -250,17 +250,17 @@ Resources:
         - Key: Name
           Value: !Sub ${VPCName} Private Routes (AZ1)
 
-  DefaultPrivateRoute1:
+  DefaultPrivateRoute:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
+      RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGateway1
 
   PrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
+      RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet1
 
   #PrivateRouteTable2:
@@ -274,14 +274,14 @@ Resources:
   #DefaultPrivateRoute2:
     #Type: AWS::EC2::Route
     #Properties:
-      #RouteTableId: !Ref PrivateRouteTable1
+      #RouteTableId: !Ref PrivateRouteTable
       #DestinationCidrBlock: 0.0.0.0/0
       #NatGatewayId: !Ref NatGateway1
 
   PrivateSubnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
+      RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet2
 
 Outputs:
@@ -315,9 +315,23 @@ Outputs:
       Ref: "PublicSubnet2"
     Export:
       Name: !Sub "${AWS::Region}-${AWS::StackName}-PublicSubnet2"
-  PrivateRouteTable1:
+  PrivateRouteTable:
     Description: "Route table of private subnet"
     Value:
-      Ref: "PrivateRouteTable1"
+      Ref: "PrivateRouteTable"
     Export:
-      Name: !Sub "${AWS::Region}-${AWS::StackName}-PrivateRouteTable1"
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PrivateRouteTable"
+  PublicRouteTable:
+    Description: "Route table of private subnet"
+    Value:
+      Ref: "PublicRouteTable"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PublicRouteTable"
+  VpcCidrBlock:
+    Description: VPC's CIDR block.
+    Value:
+      Fn::GetAtt:
+        - VPC
+        - CidrBlock
+    Export:
+      Name: VpcCidrBlock
