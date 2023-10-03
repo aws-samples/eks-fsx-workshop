@@ -29,10 +29,6 @@ managedNodeGroups:
     desiredCapacity: 2
     ssh:
       enableSsm: true
-    # iam:
-    #   withAddonPolicies:
-    #     ebs: true
-    #     efs: true
 cloudWatch:
   clusterLogging:
     enableTypes: ["all"]
