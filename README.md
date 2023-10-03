@@ -133,10 +133,10 @@ git clone https://github.com/aws-samples/eks-fsx-workshop.git
 
 There are two folders that you need to reference in the following steps, with the “eks” folder containing all manifests files related to the eks cluster resources and “FSxCFN” Cloudformation templates for spinning up the VPC environment and FSx File System.
 
-Set region variables : 
+Set region variables, Replace `<region name>` with your lab primary region name : 
 
 ```bash
-export REGION=<region name>
+export REGION_1=<region name>
 export REGION_2=us-east-2
 ```
 
@@ -156,7 +156,7 @@ Launch the CloudFormation stack to set up the network environment for both FSx a
 
 ```bash
 cd eks-fsx-workshop/FSxCFN
-aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region $REGION
+aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region $REGION_1
 ```
 
   ![VPCCFN](/images/VPCCFN.png)
@@ -211,7 +211,7 @@ Run the following CLI command to create the Amazon FSx for NetApp ONTAP file sys
 aws cloudformation create-stack \
   --stack-name EKS-FSXONTAP \
   --template-body file://./FSxONTAP.yaml \
-  --region $REGION \
+  --region $REGION_1 \
   --parameters \
   ParameterKey=Subnet1ID,ParameterValue=[your_preferred_subnet1] \
   ParameterKey=Subnet2ID,ParameterValue=[your_preferred_subnet2] \
@@ -265,7 +265,7 @@ s3_2nd_bucket_name="fsx-luster-bucket-2ndregion-${random}"
 ```bash
 aws cloudformation create-stack \
   --stack-name ${s3_bucket_name} \
-  --region $REGION \
+  --region $REGION_1 \
   --template-body file://./S3Buckets.yaml \
   --parameters \
   ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} \
@@ -296,7 +296,7 @@ sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml
 ```bash
 aws cloudformation create-stack \
   --stack-name ${iam_role_name} \
-  --region $REGION \
+  --region $REGION_1 \
   --template-body file://./S3ReplicationIAM.yaml \
   --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} \
   --capabilities CAPABILITY_NAMED_IAM
@@ -321,7 +321,7 @@ sed -i "s/myVpc/$VPCIdentifier/g" fsxL-SecurityGroup.yaml
 ```bash
 aws cloudformation create-stack \
   --stack-name FSxL-SecurityGroup-01 \
-  --region $REGION \
+  --region $REGION_1 \
   --template-body file://./fsxL-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 \
   --capabilities CAPABILITY_NAMED_IAM 
@@ -352,7 +352,7 @@ Else :
 ```bash
 aws cloudformation create-stack \
   --stack-name fsxZ-SecurityGroup \
-  --region $REGION \
+  --region $REGION_1 \
   --template-body file://./fsxZ-SecurityGroup.yaml \
   --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxOSecurityGroup \
   --capabilities CAPABILITY_NAMED_IAM 
