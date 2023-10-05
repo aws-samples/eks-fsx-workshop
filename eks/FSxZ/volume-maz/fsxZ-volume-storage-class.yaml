@@ -2,7 +2,7 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: fsx-openzfs-vol-sc
+  name: fsx-openzfs-vol-sc-maz
 provisioner: fsx.openzfs.csi.aws.com
 parameters:
   ResourceType: "volume" 

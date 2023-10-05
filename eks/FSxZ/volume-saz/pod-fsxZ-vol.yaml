@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: fsx-openzfs-vol-app
+  name: fsx-openzfs-vol-app-saz
 spec:
   containers:
     - name: app
@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: persistent-storage
       persistentVolumeClaim:
-        claimName: fsx-openzfs-vol-pvc
+        claimName: fsx-openzfs-vol-pvc-saz

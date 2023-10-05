@@ -2,11 +2,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fsx-openzfs-vol-pvc
+  name: fsx-openzfs-vol-pvc-maz
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: fsx-openzfs-vol-sc
+  storageClassName: fsx-openzfs-vol-sc-maz
   resources:
     requests:
       # When dynamically provisioning FSx for OpenZFS volumes, the requested storage value is ignored.
