@@ -2,12 +2,12 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-  name: fsx-openzfs-sc=-saz
+  name: fsx-openzfs-sc-saz
 provisioner: fsx.openzfs.csi.aws.com
 parameters:
   ResourceType: "filesystem" 
   DeploymentType: '"SINGLE_AZ_1"' 
-  ThroughputCapacity: '160' 
+  ThroughputCapacity: '64' 
   SubnetIds: '["SUBNET_ID_1"]'  
   SkipFinalBackupOnDeletion: 'true' 
   OptionsOnDeletion: '["DELETE_CHILD_VOLUMES_AND_SNAPSHOTS"]' 

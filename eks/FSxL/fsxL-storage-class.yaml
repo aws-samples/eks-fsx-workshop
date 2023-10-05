@@ -2,7 +2,7 @@
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
 metadata:
-    name: fsx-sc
+    name: fsx-lustre-sc
 provisioner: fsx.csi.aws.com
 parameters:
     subnetId: SUBNET_ID

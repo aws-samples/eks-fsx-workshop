@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fsx-claim
+  name: fsx-lustre-claim
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: fsx-sc
+  storageClassName: fsx-lustre-sc
   resources:
     requests:
       storage: 1200Gi

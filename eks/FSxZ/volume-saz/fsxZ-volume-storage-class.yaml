@@ -6,7 +6,7 @@ metadata:
 provisioner: fsx.openzfs.csi.aws.com
 parameters:
   ResourceType: "volume" 
-  ParentVolumeId: '"FSX_VOLUME"' # <<< $FSX_VOLUME
+  ParentVolumeId: '"FSX_VOLUME"' 
   CopyTagsToSnapshots: 'false'
   DataCompressionType: '"NONE"'
   NfsExports: '[{"ClientConfigurations": [{"Clients": "*", "Options": ["rw","crossmnt"]}]}]'
