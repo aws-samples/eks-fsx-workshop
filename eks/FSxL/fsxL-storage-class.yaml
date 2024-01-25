@@ -14,4 +14,3 @@ parameters:
     perUnitStorageThroughput: "50"
 mountOptions:
     - flock
-    

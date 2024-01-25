@@ -15,6 +15,6 @@ spec:
   volumes:
   - name: persistent-storage
     persistentVolumeClaim:
-      claimName: fsx-claim
+      claimName: fsx-lustre-claim
 #  nodeSelector:
 #    topology.kubernetes.io/zone: us-east-2c

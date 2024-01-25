@@ -20,4 +20,4 @@ spec:
   volumes:
   - name: persistent-storage
     persistentVolumeClaim:
-      claimName: fsx-claim
+      claimName: fsx-lustre-claim
