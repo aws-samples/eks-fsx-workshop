@@ -1030,10 +1030,8 @@ Resources:
               - aws cloudformation create-stack --stack-name ${iam_role_name} --region {{ RegionName }} --template-body file://./S3ReplicationIAM.yaml --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} --capabilities CAPABILITY_NAMED_IAM
               #Security Group for Lustre
               - echo "Creating Security Group for FSx for Lustre"
-              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSx-eks-cluster --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cp fsxL-SecurityGroup.yaml fsxL-SecurityGroup.yaml.bak
               - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxL-SecurityGroup.yaml
-              #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxL-SecurityGroup.yaml
               - aws cloudformation create-stack --stack-name FSxL-SecurityGroup-01 --region {{ RegionName }} --template-body file://./fsxL-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 --capabilities CAPABILITY_NAMED_IAM 
               - rm -f fsxL-SecurityGroup.yaml
               - mv fsxL-SecurityGroup.yaml.bak fsxL-SecurityGroup.yaml
@@ -1045,11 +1043,9 @@ Resources:
               - cd /eks-fsx-workshop/FSxCFN
               #Security Group for OpenZFS
               - echo "Creating Security Group for FSx for OpenZFS"
-              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name FSx-eks-cluster --region {{ RegionName }} --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cp fsxZ-SecurityGroup.yaml fsxZ-SecurityGroup.yaml.bak
               - sed -i "s/myVpc/{{ VPCIdentifier }}/g" fsxZ-SecurityGroup.yaml
-              #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxZ-SecurityGroup.yaml
-              - aws cloudformation create-stack --stack-name fsxZ-SecurityGroup --region {{ RegionName }} --template-body file://./fsxZ-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxOSecurityGroup --capabilities CAPABILITY_NAMED_IAM 
+              - aws cloudformation create-stack --stack-name fsxZ-SecurityGroup --region {{ RegionName }} --template-body file://./fsxZ-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxZSecurityGroup --capabilities CAPABILITY_NAMED_IAM 
               - rm -f fsxZ-SecurityGroup.yaml
               - mv fsxZ-SecurityGroup.yaml.bak fsxZ-SecurityGroup.yaml
         - action: aws:runShellScript
@@ -1070,10 +1066,8 @@ Resources:
               - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
               #Security Group for Lustre
               - echo "Creating Security Groups for FSx for Lustre in region us-east-2"
-              #- SECURITY_GROUP_SOURCE_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.securityGroupIds" --output text)
               - cd /eks-fsx-workshop/FSxCFN
               - sed -i "s/myVpc/$VPC_ID/g" fsxL-SecurityGroup.yaml
-              #- sed -i "s/FSxLSecurityGroupID/$SECURITY_GROUP_SOURCE_ID/g" fsxL-SecurityGroup.yaml
               - aws cloudformation create-stack --stack-name FSxL-SecurityGroup-02 --region us-east-2 --template-body file://./fsxL-SecurityGroup.yaml --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup02 --capabilities CAPABILITY_NAMED_IAM
               - sleep 120
               - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
@@ -1103,8 +1097,7 @@ Resources:
               - kubectl config get-contexts
               - kubectl get nodes
               - echo "Deploying CSI Driver for FSx Lustre"
-              # kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
-              - kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-0.10"
+              - kubectl apply -k "kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.1"
               - kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
               - echo "Deploying Storage Class"
               - sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class.yaml
