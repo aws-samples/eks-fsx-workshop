@@ -3,7 +3,7 @@ kind: ClusterConfig
 metadata:
   name: FSx-eks-cluster
   region: ap-southeast-2
-  version: 1.29
+  version: "1.29"
 vpc:
   id: vpc-id #replace with your vpcId
   clusterEndpoints:
