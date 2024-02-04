@@ -897,7 +897,7 @@ Resources:
               - echo "Sharing the Cloud9 {{ Cloud9EnvironmentID }} to {{ SharedUserARN01 }}"
               - aws cloud9 create-environment-membership --environment-id {{ Cloud9EnvironmentID }} --region {{ RegionName }} --user-arn {{ SharedUserARN01 }} --permissions read-write
               # aws cloud9 environment disable managed credentials
-              aws cloud9 update-environment  --environment-id {{ Cloud9EnvironmentID }} --managed-credentials-action DISABLE --region {{ RegionName }}
+              - aws cloud9 update-environment  --environment-id {{ Cloud9EnvironmentID }} --managed-credentials-action DISABLE --region {{ RegionName }}
 
   EKSCloud9BootstrappingAssociation:
     Type: AWS::SSM::Association
