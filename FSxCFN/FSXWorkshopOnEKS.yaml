@@ -975,8 +975,9 @@ Resources:
           name: createEKSCluster
           inputs:
             runCommand:
-              # - echo "Sleep 30"
-              # - sleep 30
+              # Add sleep to allow extra time to detect eksctl else in some cases it fails provisioning eks cluster
+              - echo "Sleep 10"
+              - sleep 10
               - export currentregion=`curl http://169.254.169.254/latest/meta-data/placement/region`
               - echo "Current Region is:$currentregion" 
               - if [ `aws eks list-clusters --region $currentregion |grep FSx-eks-cluster | wc -l` == 0 ];
@@ -1000,6 +1001,7 @@ Resources:
               - aws --version
               - echo "Printing the Caller identity"
               - aws sts get-caller-identity --region $currentregion
+              # make sure eksctl is installed
               - echo "Printing the eksctl version"
               - eksctl version
               - | 
