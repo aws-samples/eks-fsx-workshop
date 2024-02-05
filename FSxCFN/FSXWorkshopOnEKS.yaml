@@ -726,7 +726,7 @@ Resources:
               ## Install awscli v2
                - msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
         - action: aws:runPowerShellScript
-          name: 4installkubectl
+          name: 3installkubectl
           inputs:
             runCommand:
               # Download Chocolatey as the Package Management Tool
@@ -744,7 +744,7 @@ Resources:
               # install jq
               - choco install jq -y
         - action: aws:runPowerShellScript
-          name: 6clonerepo
+          name: 4clonerepo
           inputs:
             runCommand:
               - cd 'C:\Program Files\Git\cmd'
@@ -792,15 +792,15 @@ Resources:
             sudo su
             ## Install awscli v2
             echo "Installing awscli v2"
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -u awscliv2.zip
             sudo ./aws/install
             echo "export PATH=/usr/local/bin:$PATH" >> ~/.bashrc
             echo "awscli version"
             aws --version
             ## Install kubectl
             echo "Installing kubectl"
-            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
             install -o root -g root -m 0755 kubectl /usr/sbin/kubectl
             echo "kubectl version"
             kubectl version --client
@@ -815,7 +815,7 @@ Resources:
             eksctl version
             ## Install HELM v3.8
             echo "Installing helm"
-            curl -LO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
+            curl -sLO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
             tar -xvf helm-v3.8.2-linux-amd64.tar.gz
             chmod 755 linux-amd64/helm
             cp linux-amd64/helm /usr/sbin
@@ -869,11 +869,11 @@ Resources:
               - sudo su
               - yum install -y aws-cfn-bootstrap telnet jq git
               ## Install awscli v2
-              - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              - unzip awscliv2.zip
+              - curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              - unzip -u awscliv2.zip
               - sudo ./aws/install
               ## Install kubectl
-              - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+              - curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
               - install -o root -g root -m 0755 kubectl /usr/sbin/kubectl
               - kubectl version --client
               ## Install eksctl
@@ -881,7 +881,7 @@ Resources:
               - mv /tmp/eksctl /usr/sbin
               - eksctl version
               ## Install HELM v3.8
-              - curl -LO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
+              - curl -sLO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
               - tar -xvf helm-v3.8.2-linux-amd64.tar.gz
               - chmod 755 linux-amd64/helm
               - cp linux-amd64/helm /usr/sbin
@@ -1020,8 +1020,8 @@ Resources:
                   echo "eksctl version"
                   eksctl version
                 fi
-              - echo "Printing the Cluster File"
-              - cat cluster.yaml
+              # - echo "Printing the Cluster File"
+              # - cat cluster.yaml
               - eksctl create cluster -f ./cluster.yaml
               - fi
         - action: aws:runShellScript
@@ -1115,7 +1115,7 @@ Resources:
               - kubectl config get-contexts
               - kubectl get nodes
               - echo "Deploying CSI Driver for FSx Lustre"
-              - kubectl apply -k "kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.1"
+              - kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.1"
               - kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
               - echo "Deploying Storage Class"
               - sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class.yaml
