@@ -868,13 +868,14 @@ Resources:
               #!/bin/bash
               - sudo su
               - yum install -y aws-cfn-bootstrap telnet jq git
-              ## Install awscli v2
-              - echo "Installing awscli v2"
-              - curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              - unzip -uoq awscliv2.zip
-              - ./aws/install --update
-              - echo "awscli version"
-              - /usr/local/bin/aws --version
+              # awscli v2 is default on cloud9 - no longer needed to install
+              # ## Install awscli v2 
+              # - echo "Installing awscli v2"
+              # - curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              # - unzip -uoq awscliv2.zip
+              # - ./aws/install --update
+              # - echo "awscli version"
+              # - /usr/local/bin/aws --version
               ## Install kubectl
               - echo "Installing kubectl"
               - curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -989,7 +990,7 @@ Resources:
               # Add sleep to allow extra time to detect eksctl else in some cases it fails provisioning eks cluster
               - echo "Sleep 10"
               - sleep 10
-              - export currentregion=`curl http://169.254.169.254/latest/meta-data/placement/region`
+              - export currentregion=`curl -s http://169.254.169.254/latest/meta-data/placement/region`
               - echo "Current Region is:$currentregion" 
               - if [ `aws eks list-clusters --region $currentregion |grep FSx-eks-cluster | wc -l` == 0 ];
               - then
