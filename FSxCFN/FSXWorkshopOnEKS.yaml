@@ -793,8 +793,8 @@ Resources:
             ## Install awscli v2
             echo "Installing awscli v2"
             curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip -u awscliv2.zip
-            sudo ./aws/install
+            unzip -uoq awscliv2.zip
+            ./aws/install --update
             echo "export PATH=/usr/local/bin:$PATH" >> ~/.bashrc
             echo "awscli version"
             aws --version
@@ -810,7 +810,7 @@ Resources:
             PLATFORM=$(uname -s)_$ARCH
             curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
             tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm -f eksctl_$PLATFORM.tar.gz
-            sudo mv /tmp/eksctl /usr/local/bin
+            mv /tmp/eksctl /usr/local/bin
             echo "eksctl version"
             eksctl version
             ## Install HELM v3.8
@@ -869,30 +869,40 @@ Resources:
               - sudo su
               - yum install -y aws-cfn-bootstrap telnet jq git
               ## Install awscli v2
+              - echo "Installing awscli v2"
               - curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              - unzip -u awscliv2.zip
-              - sudo ./aws/install
+              - unzip -uoq awscliv2.zip
+              - ./aws/install --update
+              - echo "awscli version"
+              - /usr/local/bin/aws --version
               ## Install kubectl
+              - echo "Installing kubectl"
               - curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
               - install -o root -g root -m 0755 kubectl /usr/sbin/kubectl
+              - echo "kubectl version"
               - kubectl version --client
               ## Install eksctl
+              - echo "Installing eksctl"
               - curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
               - mv /tmp/eksctl /usr/sbin
+              - echo "eksctl version"
               - eksctl version
               ## Install HELM v3.8
+              - echo "Installing HELM v3.8"
               - curl -sLO "https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz"
               - tar -xvf helm-v3.8.2-linux-amd64.tar.gz
               - chmod 755 linux-amd64/helm
               - cp linux-amd64/helm /usr/sbin
+              - echo "helm version"
               - helm version
               ## Cloning the Repo
-              - sudo mkdir -p /home/ec2-user/environment/eks-fsx-workshop
-              - sudo chmod -R 777 /home/ec2-user/environment/eks-fsx-workshop 
+              - echo "Cloning the Repo"
+              - mkdir -p /home/ec2-user/environment/eks-fsx-workshop
+              - chmod -R 777 /home/ec2-user/environment/eks-fsx-workshop 
               #<Insert aws-samples/eks-fsx-workshop.git repo>
               # - git clone https://github.com/aws-samples/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
               - git clone https://github.com/git4example/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
-              - sudo chown -R ec2-user:ec2-user /home/ec2-user/environment/eks-fsx-workshop
+              - chown -R ec2-user:ec2-user /home/ec2-user/environment/eks-fsx-workshop
               # aws cloud9 environment to share to different users
               - echo "Sharing the Cloud9 {{ Cloud9EnvironmentID }} to {{ SharedUserARN01 }}"
               - aws cloud9 create-environment-membership --environment-id {{ Cloud9EnvironmentID }} --region {{ RegionName }} --user-arn {{ SharedUserARN01 }} --permissions read-write
