@@ -21,6 +21,7 @@ addons:
     version: latest # auto discovers the latest available
   - name: kube-proxy
     version: latest # auto discovers the latest available
+  - name: eks-pod-identity-agent # no version is specified so it deploys the default version
 managedNodeGroups:
   - name: ng-1-workers
     # Create the EKS Managed Node Groups in the private subnets
