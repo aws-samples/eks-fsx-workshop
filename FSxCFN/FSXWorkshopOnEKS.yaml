@@ -588,6 +588,14 @@ Resources:
       - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
       - arn:aws:iam::aws:policy/AmazonEC2FullAccess
       - arn:aws:iam::aws:policy/job-function/SystemAdministrator
+      Policies: 
+        - PolicyName: "AssumeRole"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "sts:AssumeRole"
+                Resource:  !Sub "arn:aws:iam::${AWS::AccountId}:role/eks-fsx-workshop-admin"
   EC2InstanceRolePolicy:
     Type: 'AWS::IAM::Policy'
     DeletionPolicy: Delete
@@ -904,6 +912,8 @@ Resources:
               # - git clone https://github.com/aws-samples/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
               - git clone https://github.com/git4example/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
               - chown -R ec2-user:ec2-user /home/ec2-user/environment/eks-fsx-workshop
+              # Assume role with session id - this is needed to disable managed credentials.
+              - export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" $(aws sts assume-role --role-arn arn:aws:iam::774572700388:role/eks-fsx-workshop-admin --role-session-name Participant --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" --output text))
               # aws cloud9 environment to share to different users
               - echo "Sharing the Cloud9 {{ Cloud9EnvironmentID }} to {{ SharedUserARN01 }}"
               - aws cloud9 create-environment-membership --environment-id {{ Cloud9EnvironmentID }} --region {{ RegionName }} --user-arn {{ SharedUserARN01 }} --permissions read-write
@@ -992,55 +1002,55 @@ Resources:
               - sleep 10
               - export currentregion=`curl -s http://169.254.169.254/latest/meta-data/placement/region`
               - echo "Current Region is:$currentregion" 
-              - if [ `aws eks list-clusters --region $currentregion |grep FSx-eks-cluster | wc -l` == 0 ];
-              - then
-              - echo "EKS Cluster:FSx-eks-cluster is yet to be created, now creating the EKS cluster"
-              - sudo mkdir -p /eks-fsx-workshop
-              - sudo chmod -R 777 /eks-fsx-workshop
-              #<Insert aws-samples/eks-fsx-workshop.git repo>
-              # - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
-              - git clone https://github.com/git4example/eks-fsx-workshop /eks-fsx-workshop
-              - sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
-              - sudo chmod -R 777 /eks-fsx-workshop
-              - cd /eks-fsx-workshop/eks
-              - sed -i "s/ap-southeast-2/$currentregion/g" cluster.yaml
-              - sed -i "s/vpc-id/{{ VPCIdentifier }}/g" cluster.yaml
-              - sed -i "s/public-subnet-1/{{ PublicSubnet01 }}/g" cluster.yaml
-              - sed -i "s/public-subnet-2/{{ PublicSubnet02 }}/g" cluster.yaml
-              - sed -i "s/private-subnet1/{{ PrivateSubnet01 }}/g" cluster.yaml
-              - sed -i "s/private-subnet2/{{ PrivateSubnet02 }}/g" cluster.yaml
-              - echo "Printing the awscli version"
-              - aws --version
-              - echo "Printing the Caller identity"
-              - aws sts get-caller-identity --region $currentregion
-              # make sure eksctl is installed
-              - echo "Printing the eksctl version"
-              - eksctl version
               - | 
-                if [ $(eksctl version) ]
+                if [ `aws eks list-clusters --region $currentregion |grep FSx-eks-cluster | wc -l` == 0 ];
                 then
-                  echo "eksctl already installed - success" 
+                  echo "EKS Cluster:FSx-eks-cluster is yet to be created, now creating the EKS cluster"
+                  sudo mkdir -p /eks-fsx-workshop
+                  sudo chmod -R 777 /eks-fsx-workshop
+                  #<Insert aws-samples/eks-fsx-workshop.git repo>
+                  # - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
+                  git clone https://github.com/git4example/eks-fsx-workshop /eks-fsx-workshop
+                  sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
+                  sudo chmod -R 777 /eks-fsx-workshop
+                  cd /eks-fsx-workshop/eks
+                  sed -i "s/ap-southeast-2/$currentregion/g" cluster.yaml
+                  sed -i "s/vpc-id/{{ VPCIdentifier }}/g" cluster.yaml
+                  sed -i "s/public-subnet-1/{{ PublicSubnet01 }}/g" cluster.yaml
+                  sed -i "s/public-subnet-2/{{ PublicSubnet02 }}/g" cluster.yaml
+                  sed -i "s/private-subnet1/{{ PrivateSubnet01 }}/g" cluster.yaml
+                  sed -i "s/private-subnet2/{{ PrivateSubnet02 }}/g" cluster.yaml
+                  echo "Printing the awscli version"
+                  aws --version
+                  echo "Printing the Caller identity"
+                  aws sts get-caller-identity --region $currentregion
+                  # make sure eksctl is installed
+                  echo "Printing the eksctl version"
                   eksctl version
-                else 
-                  echo "eksctl not found, Installing eksctl now"
-                  ARCH=amd64
-                  PLATFORM=$(uname -s)_$ARCH
-                  curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
-                  tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm -f eksctl_$PLATFORM.tar.gz
-                  sudo mv /tmp/eksctl /usr/local/bin
-                  echo "eksctl version"
-                  eksctl version
+                  if [ $(eksctl version) ] 
+                  then
+                    echo "eksctl already installed - success" 
+                    eksctl version
+                  else 
+                    echo "eksctl not found, Installing eksctl now"
+                    ARCH=amd64
+                    PLATFORM=$(uname -s)_$ARCH
+                    curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+                    tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm -f eksctl_$PLATFORM.tar.gz
+                    sudo mv /tmp/eksctl /usr/local/bin
+                    echo "eksctl version"
+                    eksctl version
+                  fi
+                  # - echo "Printing the Cluster File"
+                  # - cat cluster.yaml
+                  eksctl create cluster -f ./cluster.yaml
+                  # create access entry for WSParticipantRole
+                  CLUSTER_NAME="FSx-eks-cluster"
+                  ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+                  echo "create access entry for WSParticipantRole"
+                  aws eks create-access-entry --cluster-name $CLUSTER_NAME --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole
+                  aws eks associate-access-policy --cluster-name FSx-eks-cluster --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope=type=cluster
                 fi
-              # - echo "Printing the Cluster File"
-              # - cat cluster.yaml
-              - eksctl create cluster -f ./cluster.yaml
-              - # create access entry for WSParticipantRole
-              - CLUSTER_NAME="FSx-eks-cluster"
-              - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-              - echo "create access entry for WSParticipantRole"
-              - aws eks create-access-entry --cluster-name $CLUSTER_NAME --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole
-              - aws eks associate-access-policy --cluster-name FSx-eks-cluster --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope=type=cluster
-              - fi
         - action: aws:runShellScript
           name: createS3bucketsforFSxLustre
           inputs:
