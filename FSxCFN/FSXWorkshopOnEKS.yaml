@@ -1049,7 +1049,7 @@ Resources:
                   ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
                   echo "create access entry for WSParticipantRole"
                   aws eks create-access-entry --cluster-name $CLUSTER_NAME --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole
-                  aws eks associate-access-policy --cluster-name FSx-eks-cluster --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope=type=cluster
+                  aws eks associate-access-policy --cluster-name $CLUSTER_NAME --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope=type=cluster
                 fi
         - action: aws:runShellScript
           name: createS3bucketsforFSxLustre
@@ -1099,15 +1099,15 @@ Resources:
             runCommand:
               - if [ `aws eks list-clusters --region us-east-2 |grep FSx-eks-cluster02 | wc -l` == 0 ];
               - then
-              - echo "EKS Cluster:FSx-eks-cluster02 is yet to be created, now creating the EKS cluster in us-east-2"
-              - eksctl create cluster --name FSx-eks-cluster02 --region us-east-2 --nodes=2 --instance-types=c5.2xlarge --version "1.29"
-              - aws eks update-kubeconfig --name FSx-eks-cluster02 --region us-east-2
-              - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
               - CLUSTER_NAME="FSx-eks-cluster02"
+              - echo "Now creating the EKS Cluster FSx-eks-cluster02 in us-east-2"
+              - eksctl create cluster --name $CLUSTER_NAME --region us-east-2 --nodes=2 --instance-types=c5.2xlarge --version "1.29"
+              - aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-2
+              - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
               # create access entry for WSParticipantRole
               - echo "create access entry for WSParticipantRole"
               - aws eks create-access-entry --cluster-name $CLUSTER_NAME --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --region us-east-2 
-              - aws eks associate-access-policy --cluster-name FSx-eks-cluster --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope=type=cluster --region us-east-2 
+              - aws eks associate-access-policy --cluster-name $CLUSTER_NAME --principal-arn arn:aws:iam::$ACCOUNT_ID:role/WSParticipantRole --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy --access-scope=type=cluster --region us-east-2 
               - echo "Associating the OIDC Provider to EKS cluster $CLUSTER_NAME"
               - oidc_id=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5)
               - eksctl utils associate-iam-oidc-provider --cluster $CLUSTER_NAME --region us-east-2 --approve
@@ -1123,11 +1123,11 @@ Resources:
               - S3_BUCKET=$(aws s3 ls |grep fsx-luster-bucket-2ndregion | awk '{print$3}')
               - echo "Creating IAM Role for Service Account for FSx for Lustre 2nd Cluster"
               - aws iam create-policy --policy-name Amazon_2nd_FSx_Lustre_CSI_Driver --region us-east-2 --policy-document file://fsx-csi-driver.json
-              # - eksctl create iamserviceaccount --name fsx-csi-controller-sa --namespace kube-system --cluster $CLUSTER_NAME --region us-east-2 --attach-policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Amazon_2nd_FSx_Lustre_CSI_Driver --approve 
-              # To migrate on Pod Identity 
+              - eksctl create iamserviceaccount --name fsx-csi-controller-sa --namespace kube-system --cluster $CLUSTER_NAME --region us-east-2 --attach-policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Amazon_2nd_FSx_Lustre_CSI_Driver --approve 
+              # In futre To migrate on Pod Identity - currently fsx-csi-controller is not supporting it
               # Create create eks-pod-identity-agent addon and create pod identity association
               - eksctl create addon --cluster $CLUSTER_NAME --name eks-pod-identity-agent --region us-east-2
-              - eksctl create podidentityassociation --service-account-name fsx-csi-controller-sa --namespace kube-system --cluster $CLUSTER_NAME --region us-east-2 --permission-policy-arns arn:aws:iam::$ACCOUNT_ID:policy/Amazon_2nd_FSx_Lustre_CSI_Driver
+              # - eksctl create podidentityassociation --service-account-name fsx-csi-controller-sa --namespace kube-system --cluster $CLUSTER_NAME --region us-east-2 --permission-policy-arns arn:aws:iam::$ACCOUNT_ID:policy/Amazon_2nd_FSx_Lustre_CSI_Driver
               - sleep 120
               - fi
         - action: aws:runShellScript
@@ -1140,8 +1140,9 @@ Resources:
               - SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)
               - S3_BUCKET=$(aws s3 ls |grep fsx-luster-bucket-2ndregion | awk '{print$3}')
               - SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region us-east-2 --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
+              # In futre To migrate on Pod Identity - currently fsx-csi-controller is not supporting it
               # To migrate on Pod Identity, we dont need to get role name for annotation 
-              # - ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)            
+              - ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)            
               # - ROLE_ARN=$(aws cloudformation describe-stacks --stack-name "eksctl-${CLUSTER_NAME}-addon-podidentityrole-kube-system-fsx-csi-controller-sa" --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text)            
               - echo "Firstly checking kubectl is working fine"
               - aws eks update-kubeconfig --name FSx-eks-cluster02 --region us-east-2
@@ -1153,9 +1154,9 @@ Resources:
               - kubectl get nodes
               - echo "Deploying CSI Driver for FSx Lustre"
               - kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
-              # To migrate on Pod Identity 
+              # In futre To migrate on Pod Identity - currently fsx-csi-controller is not supporting it
               # For pod identity we dont need annotation
-              # - kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
+              - kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
               - echo "Deploying Storage Class"
               - sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class.yaml
               - sed -i "s/SECURITY_GROUP_ID/$SECURITY_GROUP_ID/g" fsxL-storage-class.yaml
