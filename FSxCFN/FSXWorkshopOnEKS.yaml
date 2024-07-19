@@ -758,8 +758,8 @@ Resources:
               - cd 'C:\Program Files\Git\cmd'
               - New-Item "C:\Users\Administrator\Desktop\eks-fsx-workshop" -ItemType Directory
               #<Insert aws-samples/eks-fsx-workshop.git repo>
-              # - .\git clone https://github.com/aws-samples/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop
-              - .\git clone https://github.com/git4example/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop          
+              - .\git clone https://github.com/aws-samples/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop
+              # - .\git clone https://github.com/git4example/eks-fsx-workshop.git C:\Users\Administrator\Desktop\eks-fsx-workshop          
   Association:
     Type: AWS::SSM::Association
     Properties:
@@ -909,8 +909,8 @@ Resources:
               - mkdir -p /home/ec2-user/environment/eks-fsx-workshop
               - chmod -R 777 /home/ec2-user/environment/eks-fsx-workshop 
               #<Insert aws-samples/eks-fsx-workshop.git repo>
-              # - git clone https://github.com/aws-samples/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
-              - git clone https://github.com/git4example/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
+              - git clone https://github.com/aws-samples/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
+              # - git clone https://github.com/git4example/eks-fsx-workshop /home/ec2-user/environment/eks-fsx-workshop
               - chown -R ec2-user:ec2-user /home/ec2-user/environment/eks-fsx-workshop
               # Assume role with session id - this is needed to disable managed credentials.
               - ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
@@ -1010,8 +1010,8 @@ Resources:
                   sudo mkdir -p /eks-fsx-workshop
                   sudo chmod -R 777 /eks-fsx-workshop
                   #<Insert aws-samples/eks-fsx-workshop.git repo>
-                  # - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
-                  git clone https://github.com/git4example/eks-fsx-workshop /eks-fsx-workshop
+                  - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
+                  # git clone https://github.com/git4example/eks-fsx-workshop /eks-fsx-workshop
                   sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
                   sudo chmod -R 777 /eks-fsx-workshop
                   cd /eks-fsx-workshop/eks
