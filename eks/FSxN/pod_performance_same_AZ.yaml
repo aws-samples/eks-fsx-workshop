@@ -29,4 +29,4 @@ spec:
         - mountPath: "/usr/share/trident-nas/"
           name: task-trident-nas-pv-storage-saz
   nodeSelector: # to make sure the pod stays in the same availability zone
-    topology.ebs.csi.aws.com/zone: us-west-2a
+    topology.kubernetes.io/zone: us-west-2a

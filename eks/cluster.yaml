@@ -1,8 +1,9 @@
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 metadata:
-  name: FSxONTAP-eks
+  name: FSx-eks-cluster
   region: ap-southeast-2
+  version: "1.29"
 vpc:
   id: vpc-id #replace with your vpcId
   clusterEndpoints:
@@ -16,24 +17,20 @@ iam:
   withOIDC: true
 addons:
   - name: vpc-cni # no version is specified so it deploys the default version
-  - name: aws-ebs-csi-driver
   - name: coredns
     version: latest # auto discovers the latest available
   - name: kube-proxy
     version: latest # auto discovers the latest available
+  - name: eks-pod-identity-agent # no version is specified so it deploys the default version
 managedNodeGroups:
   - name: ng-1-workers
     # Create the EKS Managed Node Groups in the private subnets
     subnets: [ 'private-subnet1', 'private-subnet2'] #replace with your subnetId
     labels: { role: workers }
-    instanceType: c4.2xlarge
+    instanceType: c5.2xlarge
     desiredCapacity: 2
     ssh:
       enableSsm: true
-    iam:
-      withAddonPolicies:
-        ebs: true
-        efs: true
 cloudWatch:
   clusterLogging:
     enableTypes: ["all"]

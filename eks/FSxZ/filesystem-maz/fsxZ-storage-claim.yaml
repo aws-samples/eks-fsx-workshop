@@ -1,11 +1,12 @@
+#fsxZ-storage-claim.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: fsx-lustre-claim
+  name: fsx-openzfs-pvc-maz
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: fsx-lustre-sc
+  storageClassName: fsx-openzfs-sc-maz
   resources:
     requests:
       storage: 1200Gi

@@ -1,0 +1,16 @@
+#fsxZ-volume-claim.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fsx-openzfs-vol-pvc-maz
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: fsx-openzfs-vol-sc-maz
+  resources:
+    requests:
+      # When dynamically provisioning FSx for OpenZFS volumes, the requested storage value is ignored.
+      # Instead, the CSI driver uses the storageCapacityReservation and storageCapacityQuota parameters to
+      # configure the storage properties of the volume. These values are defined in the storage class.
+      # The value below MUST be explicitly set to 1Gi, otherwise the creation will fail.
+      storage: 1Gi

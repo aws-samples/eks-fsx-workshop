@@ -13,11 +13,11 @@ spec:
     lifecycle:
       postStart:
         exec:
-          command: ["amazon-linux-extras", "install", "lustre2.10", "-y"]
+          command: ["amazon-linux-extras", "install", "lustre2.15", "-y"]
     volumeMounts:
     - name: persistent-storage
       mountPath: /data
   volumes:
   - name: persistent-storage
     persistentVolumeClaim:
-      claimName: fsx-claim
+      claimName: fsx-lustre-claim
