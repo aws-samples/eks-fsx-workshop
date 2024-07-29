@@ -1010,7 +1010,7 @@ Resources:
                   sudo mkdir -p /eks-fsx-workshop
                   sudo chmod -R 777 /eks-fsx-workshop
                   #<Insert aws-samples/eks-fsx-workshop.git repo>
-                  - git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
+                  git clone https://github.com/aws-samples/eks-fsx-workshop /eks-fsx-workshop
                   # git clone https://github.com/git4example/eks-fsx-workshop /eks-fsx-workshop
                   sudo chown -R ec2-user:ec2-user /eks-fsx-workshop
                   sudo chmod -R 777 /eks-fsx-workshop
