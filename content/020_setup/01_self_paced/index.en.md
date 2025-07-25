@@ -123,6 +123,12 @@ export PRIMARY_CLUSTER_NAME=FSx-eks-cluster
 export SECONDARY_CLUSTER_NAME=FSx-eks-cluster02
 ```
 
+- Set regions same as you setup earlier above : 
+```bash
+export PRIMARY_REGION=YOUR_PREFERED_PRIMARY_REGION
+export SECONDARY_REGION=YOUR_PREFERED_SECONDARY_REGION
+```
+
 - Check if region and cluster names are set correctly
 
 ```bash

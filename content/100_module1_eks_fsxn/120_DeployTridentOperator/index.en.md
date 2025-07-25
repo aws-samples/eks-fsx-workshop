@@ -63,7 +63,7 @@ ls -ltr
 
 
 Install via the helm command to the trident namespace (Match your file name as per your output above)
-::code[helm install trident -n trident trident-operator-100.2506.0.tgz]{language=bash showLineNumbers=false showCopyAction=true}
+::code[helm upgrade --install trident -n trident trident-operator-100.2506.0.tgz]{language=bash showLineNumbers=false showCopyAction=true}
 
 
 ::::expand{header="You should see similar output like below, click to expand:"}
