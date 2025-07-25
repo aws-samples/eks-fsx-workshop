@@ -32,98 +32,136 @@ Amazon Elastic Kubernetes Service (EKS) released CSI drivers for FSx for OpenZFS
 
 ```
 .
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── FSxCFN
-│   ├── FSXWorkshopOnEKS.yaml
-│   ├── FSxONTAP.yaml
-│   ├── S3Buckets.yaml
-│   ├── S3ReplicationIAM.yaml
-│   ├── fsx-csi-driver.json
-│   ├── fsxL-SecurityGroup.yaml
-│   ├── fsxZ-SecurityGroup.yaml
-│   └── vpc-subnets.yaml
-├── LICENSE
 ├── README.md
-├── docs
-│   ├── 5.deploy-trident-operator.md
-│   ├── 6.provision-trident-volume-and-storage-class.md
-│   ├── 7.create-clones-and-snapshots.md
-│   └── images
-│       ├── SVM_01.png
-│       ├── admin.png
-│       ├── file.png
-│       ├── file1.png
-│       ├── file2.png
-│       ├── filebrowser.png
-│       ├── sample.png
-│       ├── sample1.png
-│       ├── sample2.png
-│       ├── secrets_manager_01.png
-│       ├── volume01.png
-│       ├── volume02.png
-│       ├── volume03.png
-│       └── volume04.png
-├── eks
-│   ├── FSxL
-│   │   ├── claim.yaml
-│   │   ├── fsxL-storage-class.yaml
-│   │   ├── pod.yaml
-│   │   └── pod_performance.yaml
-│   ├── FSxN
-│   │   ├── backend-ontap-nas.yaml
-│   │   ├── mysql
-│   │   │   ├── mysql-client.yaml
-│   │   │   ├── mysql-configmap.yaml
-│   │   │   ├── mysql-service.yaml
-│   │   │   ├── mysql-statefulset.yaml
-│   │   │   ├── pod_backup_restore.yaml
-│   │   │   ├── pvc-from-snap.yaml
-│   │   │   ├── snapshot-class.yaml
-│   │   │   └── snapshot.yaml
-│   │   ├── pod_performance_different_AZ.yaml
-│   │   ├── pod_performance_same_AZ.yaml
-│   │   ├── pvc-trident.yaml
-│   │   ├── storage-class-csi-nas.yaml
-│   │   └── svm_secret.yaml
-│   ├── FSxZ
-│   │   ├── filesystem
-│   │   │   ├── delete_me_sc.yaml
-│   │   │   ├── fsxZ-storage-claim.yaml
-│   │   │   ├── fsxZ-storage-class.yaml
-│   │   │   └── pod-fsxZ-filesystem.yaml
-│   │   └── volume
-│   │       ├── delete_me_sc.yaml
-│   │       ├── fsxZ-volume-claim.yaml
-│   │       ├── fsxZ-volume-storage-class.yaml
-│   │       └── pod-fsxZ-vol.yaml
-│   └── cluster.yaml
-└── images
-    ├── FSxL-Architecture.png
-    ├── FSxN-Architecture.png
-    └── FSxZ-Architecture.png
+├── assets
+│   └── README.md
+├── content
+│   ├── 010_introduction
+│   │   └── index.en.md
+│   ├── 020_setup
+│   │   ├── 01_self_paced
+│   │   │   └── index.en.md
+│   │   ├── 02_aws_event
+│   │   │   └── index.en.md
+│   │   └── index.en.md
+│   ├── 100_module1_eks_fsxn
+│   │   ├── 110_solutionoverview
+│   │   │   └── index.en.md
+│   │   ├── 120_DeployTridentOperator
+│   │   │   └── index.en.md
+│   │   ├── 130_ProvisionTridentVolumes_StorageClass
+│   │   │   └── index.en.md
+│   │   ├── 140_DeployMySQL_StatefulApps
+│   │   │   └── index.en.md
+│   │   ├── 150_ScaleMySQL_Statefulsets
+│   │   │   └── index.en.md
+│   │   ├── 160_BackupAndRestore
+│   │   │   └── index.en.md
+│   │   ├── 180_PerformanceTesting
+│   │   │   └── index.en.md
+│   │   ├── 190_AvailabilityZone_Failover
+│   │   │   └── index.en.md
+│   │   └── index.en.md
+│   ├── 200_module2_eks_fsxl
+│   │   ├── 210_SolutionOverview
+│   │   │   └── index.en.md
+│   │   ├── 220_DeployAmazonFSxLustreCSIDriverToEKS
+│   │   │   └── index.en.md
+│   │   ├── 230_DeployStorageclassAndPVC
+│   │   │   └── index.en.md
+│   │   ├── 240_PerformanceTesting
+│   │   │   └── index.en.md
+│   │   ├── 250_CreateCrossRegionReplicationForS3Buckets
+│   │   │   └── index.en.md
+│   │   ├── 260_RegionalFailoverAndSwitch
+│   │   │   └── index.en.md
+│   │   └── index.en.md
+│   ├── 300_module3_eks_fsxz
+│   │   ├── 310_SolutionOverview
+│   │   │   └── index.en.md
+│   │   ├── 320_DeployAmazonFSxOpenZFSCSIDriverToEKS
+│   │   │   └── index.en.md
+│   │   ├── 330_DynamicOpenZFSProvisioning
+│   │   │   └── index.en.md
+│   │   ├── 340_DynamicVolumeProvisioning
+│   │   │   └── index.en.md
+│   │   ├── 350_PerformanceTesting
+│   │   │   └── index.en.md
+│   │   ├── 360_AvailabilityZone_Failover
+│   │   │   └── index.en.md
+│   │   └── index.en.md
+│   ├── index.en.md
+│   └── summary
+│       └── index.en.md
+├── contentspec.yaml
+└── static
+    ├── FSXWorkshopOnEKS.yaml
+    ├── FSxCFN
+    │   ├── FSXWorkshopOnEKS.yaml
+    │   ├── FSxONTAP.yaml
+    │   ├── S3Buckets.yaml
+    │   ├── S3ReplicationIAM.yaml
+    │   ├── fsx-csi-driver.json
+    │   ├── fsxL-SecurityGroup.yaml
+    │   ├── fsxZ-SecurityGroup.yaml
+    │   └── vpc-subnets.yaml
+    ├── aws-logo.png
+    ├── eks
+    │   ├── FSxL
+    │   │   ├── claim.yaml
+    │   │   ├── fsxL-storage-class.yaml
+    │   │   ├── pod.yaml
+    │   │   └── pod_performance.yaml
+    │   ├── FSxN
+    │   │   ├── backend-ontap-nas.yaml
+    │   │   ├── mysql
+    │   │   │   ├── mysql-client.yaml
+    │   │   │   ├── mysql-configmap.yaml
+    │   │   │   ├── mysql-service.yaml
+    │   │   │   ├── mysql-statefulset.yaml
+    │   │   │   ├── pod_backup_restore.yaml
+    │   │   │   ├── pvc-from-snap.yaml
+    │   │   │   ├── snapshot-class.yaml
+    │   │   │   └── snapshot.yaml
+    │   │   ├── pod_performance_different_AZ.yaml
+    │   │   ├── pod_performance_same_AZ.yaml
+    │   │   ├── pvc-trident.yaml
+    │   │   ├── storage-class-csi-nas.yaml
+    │   │   └── svm_secret.yaml
+    │   ├── FSxZ
+    │   │   ├── filesystem-maz
+    │   │   │   ├── fsxZ-storage-claim.yaml
+    │   │   │   ├── fsxZ-storage-class.yaml
+    │   │   │   └── pod-fsxZ-filesystem.yaml
+    │   │   ├── filesystem-saz
+    │   │   │   ├── fsxZ-storage-claim.yaml
+    │   │   │   ├── fsxZ-storage-class.yaml
+    │   │   │   └── pod-fsxZ-filesystem.yaml
+    │   │   ├── volume-maz
+    │   │   │   ├── fsxZ-volume-claim.yaml
+    │   │   │   ├── fsxZ-volume-storage-class.yaml
+    │   │   │   └── pod-fsxZ-vol.yaml
+    │   │   └── volume-saz
+    │   │       ├── fsxZ-volume-claim.yaml
+    │   │       ├── fsxZ-volume-storage-class.yaml
+    │   │       └── pod-fsxZ-vol.yaml
+    │   └── cluster.yaml
+    ├── images
+    │   ├── < Workshop Images ...>
+        (...)
 ```
 
 
 
-## Prerequisites
+### Part 1 : Prerequisite of setting up On-demand Workshop
 
 For this walkthrough, you should have the following prerequisites:
 
-1. An AWS account with necessary permissions to create and manage Amazon VPC, Amazon EKS cluster, Amazon FSx for NetApp ONTAP file system, and CloudFormation stack.
+1. An AWS account with necessary permissions to create and manage Amazon VPC, subresources under VPC, Amazon EKS cluster, S3 Bucket, Amazon FSx for NetApp ONTAP, Amazon FSx Lustre, Amazon FSx OpenZFS file system, and CloudFormation stack.
 
-2. You will need : 
-  - EKS 1.22 and later
-  
- On your laptop: 
-  - eksctl: https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html
-  - kubectl: https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
-  - Helm 3: https://docs.aws.amazon.com/eks/latest/userguide/helm.html
+2. The AWS Command Line Interface (AWS CLI) configured in your working environment. For information about installing and configuring the AWS CLI, see Installing or updating the latest version of the AWS CLI. https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 
-
-3. The AWS Command Line Interface (AWS CLI) configured in your working environment. For information about installing and configuring the AWS CLI, see Installing or updating the latest version of the AWS CLI. https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-
-## 1. Clone the Github repository
+### Part 2 : Clone the Github repository
 
 You can find the CloudFormation template and relevant code in this GitHub repo. Run the following command to clone the repository into your local workstation.
 
@@ -131,262 +169,148 @@ You can find the CloudFormation template and relevant code in this GitHub repo. 
 git clone https://github.com/aws-samples/eks-fsx-workshop.git
 ```
 
-There are two folders that you need to reference in the following steps, with the “eks” folder containing all manifests files related to the eks cluster resources and “FSxCFN” Cloudformation templates for spinning up the VPC environment and FSx File System.
+There are two folders that you need to reference in the following steps, with the “eks” folder containing all manifests files related to the eks cluster resources and “FSxCFN” Cloudformation templates for spinning up the VPC, FSx File Systems, EKS Clusters ..etc.
 
-Set region variables, Replace `<region name>` with your lab primary region name : 
+### Part 3 : Provision workshop resources
 
-```bash
-export REGION_1=<region name>
-export REGION_2=us-east-2
-```
-
-Set cluster variables : 
+#### Upload template to S3
+Upload AWS CloudFormation template to your bucket in order to validate template before stack creation. Please replace **YOUR_BUCKET_NAME** in following command.
 
 ```bash
-export CLUSTER_NAME_1=FSx-eks-cluster
-export CLUSTER_NAME_2=FSx-eks-cluster02
-```
-
-
-## 2. Create a VPC environment for Amazon EKS and FSx (Optional)
-
-Create a new VPC with two private subnets and two public subnets using CloudFormation. This step is optional, and an existing VPC can be reused for the Amazon EKS cluster and the FSx file system.
-
-Launch the CloudFormation stack to set up the network environment for both FSx and EKS cluster:
-
-```bash
-cd eks-fsx-workshop/FSxCFN
-aws cloudformation create-stack --stack-name FSX-EKS-VPC --template-body file://./vpc-subnets.yaml --region $REGION_1
-```
-
-  ![VPCCFN](/images/VPCCFN.png)
-
-## 3. Create an Amazon EKS cluster
-
-In this walkthrough, we are going to create the EKS cluster with a managed node group that contains two worker nodes residing across the two private subnets created in step 2. In the `cluster.yaml` file, substitute the VPC ID and subnet IDs based on the output of the CloudFormation stack launched in step 2.
-
-1. Current working directory is 
-
-```bash
-cd ../eks
-```
-      
-2.  Edit the file cluster.yaml and replace the region, vpcid, private subnet and public subnet
-
-
-![VPCREGION](/images/vpcregion.png) 
-
-If you are using your own existing VPC and subnets then copy the following CLI command in a notepad to modify it to set values.
-```bash
-VPCID=<your vpc id>
-PUBLIC_SUBNET_1=<your public subnet 1>
-PUBLIC_SUBNET_1=<your public subnet 2>
-PRIVATE_SUBNET_1=<your private subnet 1>
-PRIVATE_SUBNET_2=<your private subnet 2>
-PUBLIC_ROUTETABLE=<your public route table>
-PRIVATE_ROUTETABLE=<your private route table>
-```
-
-Else get values from the cloud formation stack created in Step 2 above : 
-```bash
-VPCID=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" --output text)
-VPCCIDR=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='VpcCidrBlock'].OutputValue" --output text)
-PUBLIC_SUBNET_1=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet1'].OutputValue" --output text)
-PUBLIC_SUBNET_2=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet2'].OutputValue" --output text)
-PRIVATE_SUBNET_1=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet1'].OutputValue" --output text)
-PRIVATE_SUBNET_2=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnet2'].OutputValue" --output text)
-PUBLIC_ROUTETABLE=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PublicRouteTable'].OutputValue" --output text)
-PRIVATE_ROUTETABLE=$(aws cloudformation describe-stacks --stack-name FSX-EKS-VPC --region $REGION_1 --query "Stacks[0].Outputs[?OutputKey=='PrivateRouteTable'].OutputValue" --output text)
+ASSET_BUCKET=YOUR_BUCKET_NAME
+ASSET_BUCKET_PATH=eks-fsx-workshop
 ```
 
 ```bash
-sed -i'' -e "s/ap-southeast-2/$REGION_1/g" cluster.yaml
-sed -i'' -e "s/vpc-id/$VPCID/g" cluster.yaml
-sed -i'' -e "s/public-subnet-1/$PUBLIC_SUBNET_1/g" cluster.yaml
-sed -i'' -e "s/public-subnet-2/$PUBLIC_SUBNET_2/g" cluster.yaml
-sed -i'' -e "s/private-subnet1/$PRIVATE_SUBNET_1/g" cluster.yaml
-sed -i'' -e "s/private-subnet2/$PRIVATE_SUBNET_2/g" cluster.yaml
+aws s3 sync ./eks-fsx-workshop s3://${ASSET_BUCKET}/${ASSET_BUCKET_PATH}
 ```
 
-Verify updated values : 
+
+#### Validate template
 
 ```bash
-cat cluster.yaml
+aws cloudformation validate-template --template-url https://${ASSET_BUCKET}.s3.amazonaws.com/${ASSET_BUCKET_PATH}/static/FSXWorkshopOnEKS.yaml
 ```
 
-- Create the EKS cluster by running the following command:
-```bash
-eksctl create cluster -f ./cluster.yaml
-```
+#### Create stack
 
-- Create EKS Cluster in 2nd region for testing cross region desaster recovery and OpenZFS
+Please make sure you replace **YOUR_PREFERED_PRIMARY_REGION** and **YOUR_PREFERED_SECONDARY_REGION** in following command.
+
 
 ```bash
-eksctl create cluster --name $CLUSTER_NAME_2 --region $REGION_2 --nodes=2 --instance-types=c5.2xlarge
+export PRIMARY_REGION=YOUR_PREFERED_PRIMARY_REGION
+export SECONDARY_REGION=YOUR_PREFERED_SECONDARY_REGION
+STACK_NAME=FSXWorkshopOnEKS
+VSINSTANCE_NAME=VSCodeServerForEKS
+ASSET_BUCKET_ZIPPATH=""
 ```
 
-The above EKS Cluster creation will complete approximately in 30 Mins. 
+This may take upto 60 mins : 
 
-
-## 4. Create an Amazon FSx for NetApp ONTAP file system
-
-The following steps to create the Amazon FSx for Netapp ONTAP Filesystem. If you want to skip and move to Amazon FSx for Lustre then go to to step 5
-
-Run the following CLI command to create the Amazon FSx for NetApp ONTAP file system. (Note that you need to modify the parameters based on your VPC environment created as above.)
-
-1. Copy the following CLI command in a notepad to modify it to define your password
-   
 ```bash
 aws cloudformation create-stack \
-  --stack-name EKS-FSXONTAP \
-  --template-body file://./FSxONTAP.yaml \
-  --region $REGION_1 \
+  --stack-name ${STACK_NAME} \
+  --template-url https://${ASSET_BUCKET}.s3.amazonaws.com/${ASSET_BUCKET_PATH}/static/FSXWorkshopOnEKS.yaml \
+  --region $PRIMARY_REGION \
   --parameters \
-  ParameterKey=Subnet1ID,ParameterValue=$PRIVATE_SUBNET_1 \
-  ParameterKey=Subnet2ID,ParameterValue=$PRIVATE_SUBNET_2 \
-  ParameterKey=myVpc,ParameterValue=$VPCID \
-  ParameterKey=FSxONTAPRouteTable,ParameterValue=$PUBLIC_ROUTETABLE,$PRIVATE_ROUTETABLE \
-  ParameterKey=FileSystemName,ParameterValue=EKS-myFSxONTAP \
-  ParameterKey=ThroughputCapacity,ParameterValue=128 \
-  ParameterKey=FSxAllowedCIDR,ParameterValue=$VPCCIDR \
-  ParameterKey=FsxAdminPassword,ParameterValue=[Define password] \
-  ParameterKey=SvmAdminPassword,ParameterValue=[Define password] \
+  ParameterKey=VSCodeUser,ParameterValue=participant \
+  ParameterKey=InstanceName,ParameterValue=${VSINSTANCE_NAME} \
+  ParameterKey=InstanceVolumeSize,ParameterValue=100 \
+  ParameterKey=InstanceType,ParameterValue=t4g.medium \
+  ParameterKey=InstanceOperatingSystem,ParameterValue=AmazonLinux-2023 \
+  ParameterKey=HomeFolder,ParameterValue=environment \
+  ParameterKey=DevServerPort,ParameterValue=8081 \
+  ParameterKey=AssetZipS3Path,ParameterValue=${ASSET_BUCKET_ZIPPATH} \
+  ParameterKey=SecondaryRegion,ParameterValue=${SECONDARY_REGION} \
+  --disable-rollback \
   --capabilities CAPABILITY_NAMED_IAM
+
+# Wait for stack creation to complete
+aws cloudformation wait stack-create-complete --stack-name ${STACK_NAME} --region PRIMARY_REGION
 ```
 
-2. Change the region that you are operating
+### Part 4 : Access your workshop
 
-3. Enter the values that was captured earlier during VPC creation as show in the below screenshot
-  
-   ![VPCCFN](/images/VPCCFN.png)
+**Connect to your AWS lab environment via Open source VSCode IDE**
 
-4. Throughput capacity input is 128MB/s. However if you wish to increase it the supported values are 256, 512, 1024 and 2048. 
+Ref : [code-server](https://github.com/coder/code-server) 
 
-5. Default storage capacity for this deployment type is 1024
+You will be using the Open source VSCode IDE terminal to copy and paste commands that are provided in this workshop. 
 
+::alert[Note: Please use google chrome browser for best user experience. Firefox may experience some issues while copy-paste commands.]{header="Important" type="warning"}
 
-This CloudFormation stack will take approximately 45 minutes to complete; feel free to move to step 4 while waiting for the file system to be deployed.
-
-After the completion of the deployment, we can verify in the following screenshot that the FSx NetApp ONTAP file system and Storage Virtual Machine (SVM) are created.
-![FSX01](/images/fsx01.png)
-
-Take a look at the details of the FSx for NetApp ONTAP file system. We can see that the file system has a primary subnet and a standby subnet.
-
-![ONTAP04](/images/ontap4.png)
-
-SVM is also created.
-
-![ONTAP05](/images/ontap5.png)
+1. Go to Cloud formation console [link](https://console.aws.amazon.com/cloudformation) and select `genaifsxworkshoponeks` stack 
+2. Go to Stack **Outputs**
+3. Copy Password and click URL
+4. Enter copied password in the new tab opened for the URL
 
 
-## 5. Create needful resources for Amazon FSx for Lustre file system
+![CFN-Output](/static/images/cfn-output.png)
+
+5. Select your VSCode UI theam 
+
+![Select Theme](/static/images/select-theme.png)
+
+6. You can maximize terminal window.
+
+![maximize](/static/images/maximize.png)
+
+### Note: 
+When you first time copy-paste a command on VSCode IDE, your browser may ask you to allow permission to see informaiton on clipboard. Please select **"Allow"**.
+
+![allow-clipboard](/static/images/allow-clipboard.png)
 
 
-- Creating S3 bucket for FSx Luster in primary region
+- Set cluster variables : 
 
 ```bash
-random=`tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo ''`
-s3_bucket_name="fsx-luster-bucket-${random}"
-s3_2nd_bucket_name="fsx-luster-bucket-2ndregion-${random}"
+export PRIMARY_CLUSTER_NAME=FSx-eks-cluster
+export SECONDARY_CLUSTER_NAME=FSx-eks-cluster02
 ```
 
+- Check if region and cluster names are set correctly
 
 ```bash
-aws cloudformation create-stack \
-  --stack-name ${s3_bucket_name} \
-  --region $REGION_1 \
-  --template-body file://./S3Buckets.yaml \
-  --parameters \
-  ParameterKey=S3BucketName,ParameterValue=${s3_bucket_name} \
-  --capabilities CAPABILITY_NAMED_IAM 
+echo "PRIMARY_REGION        :" $PRIMARY_REGION
+echo "SECONDARY_REGION      :" $SECONDARY_REGION
+echo "PRIMARY_CLUSTER_NAME  :" $PRIMARY_CLUSTER_NAME
+echo "SECONDARY_CLUSTER_NAME:" $SECONDARY_CLUSTER_NAME
 ```
 
-- Creating S3 bucket in 2nd region 
-  
-```bash
-aws cloudformation create-stack \
-  --stack-name ${s3_2nd_bucket_name} \
-  --region $REGION_2 \
-  --template-body file://./S3Buckets.yaml \
-  --parameters \
-  ParameterKey=S3BucketName,ParameterValue=${s3_2nd_bucket_name} \
-  --capabilities CAPABILITY_NAMED_IAM 
-```
-
-
-- Creating IAM Role and Policy for S3 Cross Region Replication
-  
-```bash
-iam_role_name="s3-crr-${random}"
-sed -i "s/DOC-EXAMPLE-BUCKET1/$s3_bucket_name/g" S3ReplicationIAM.yaml
-sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml  
-```
+## Update the kube-config file:
+Before you can start running all the Kubernetes commands included in this workshop, you need to update the kube-config file with the proper credentials to access the cluster. To do so, in your VSCode IDE terminal run the below command:
 
 ```bash
-aws cloudformation create-stack \
-  --stack-name ${iam_role_name} \
-  --region $REGION_1 \
-  --template-body file://./S3ReplicationIAM.yaml \
-  --parameters ParameterKey=IAMRoleName,ParameterValue=${iam_role_name} \
-  --capabilities CAPABILITY_NAMED_IAM
+aws eks update-kubeconfig --name $PRIMARY_CLUSTER_NAME --region $PRIMARY_REGION
 ```
 
-- Creating Security Group for FSx for Lustre
+
+## Query the Amazon EKS cluster:
+Run the command below to see the Kubernetes nodes currently provisioned:
 
 ```bash
-sed -i "s/myVpc/$VPCID/g" fsxL-SecurityGroup.yaml
+kubectl get nodes
 ```
+
+You should see two nodes provisioned (which are the on-demand nodes used by the Kubernetes controllers), such as the output below:
+
+
+![get-nodes](/static/images/get-nodes.png)
+
+
+You now have a VSCode IDE Server environment set-up ready to use your Amazon EKS Cluster! You may now proceed with the next step.
+
+::alert[**DO NOT CLICK ON NEXT BELOW**: Please head straight to **[Module 1 - Running Amazon FSx for NetApp ONTAP on Amazon EKS](/100_module1_eks_fsxn/)** for the next action.]{header="Important" type="warning"}
+
+Once you finish with workshop and ready to clean up, visit this page to execute commands in Part 5 Clean up below.
+
+### Part 5 : Clean up
+This may take upto 30 mins : 
 
 ```bash
-aws cloudformation create-stack \
-  --stack-name FSxL-SecurityGroup-01 \
-  --region $REGION_1 \
-  --template-body file://./fsxL-SecurityGroup.yaml \
-  --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 \
-  --capabilities CAPABILITY_NAMED_IAM 
+aws cloudformation delete-stack --stack-name ${STACK_NAME} --region PRIMARY_REGION
+
+# Wait for stack deletion to complete
+aws cloudformation wait stack-delete-complete --stack-name ${STACK_NAME} --region PRIMARY_REGION
 ```
-
-```bash
-aws cloudformation create-stack \
-  --stack-name FSxL-SecurityGroup-02 \
-  --region $REGION_2 \
-  --template-body file://./fsxL-SecurityGroup.yaml \
-  --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup02 \
-  --capabilities CAPABILITY_NAMED_IAM 
-```
-
-## 6. Create needful resources for Amazon FSx for OpenZFS 
-
-Create Security Group for OpenZFS
-              
-`sed -i "s/myVpc/$VPCID/g" fsxZ-SecurityGroup.yaml`
-
-```bash
-aws cloudformation create-stack \
-  --stack-name fsxZ-SecurityGroup \
-  --region $REGION_1 \
-  --template-body file://./fsxZ-SecurityGroup.yaml \
-  --parameters ParameterKey=SecurityGroupName,ParameterValue=FSxOSecurityGroup \
-  --capabilities CAPABILITY_NAMED_IAM 
-```
-
-
-## Clean up
-Run these commands one by one in given sequence : 
-
-```bash
-eksctl delete nodegroup --region $REGION_2  --cluster $CLUSTER_NAME_2 --name $(eksctl get nodegroup --cluster $CLUSTER_NAME_2 --region $REGION_2 --output json | jq -r .[].Name)
-eksctl delete cluster --name=$CLUSTER_NAME_2 --region $REGION_2 
-eksctl delete nodegroup --cluster $CLUSTER_NAME_1 --name $(eksctl get nodegroup --cluster $CLUSTER_NAME_1 --output json | jq -r .[].Name)
-eksctl delete cluster --name=$CLUSTER_NAME_1 
-aws cloudformation delete-stack --stack-name FSxL-SecurityGroup-02 --region $REGION_2
-aws cloudformation delete-stack --stack-name FSxL-SecurityGroup-01
-aws cloudformation delete-stack --stack-name fsxZ-SecurityGroup
-aws cloudformation delete-stack --stack-name ${iam_role_name}
-aws cloudformation delete-stack --stack-name ${s3_2nd_bucket_name} --region $REGION_2
-aws cloudformation delete-stack --stack-name ${s3_bucket_name}
-aws cloudformation delete-stack --stack-name EKS-FSXONTAP
-aws cloudformation delete-stack --stack-name FSX-EKS-VPC
-```
-
 

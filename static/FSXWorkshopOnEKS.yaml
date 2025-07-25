@@ -1,0 +1,3552 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template to create a VPC, VSCode environment, EKS Cluster, S3, FSxO, FSxL, FSxZ, setup with eksctl,kubectl and helm.
+Parameters:
+## ------------ WORKSHOP INFRA ------------------------- 
+  VPCName:
+    Description: The name of the VPC being created.
+    Type: String
+    Default: "FSx-eks-cluster-VPC"
+## FSxN Parameters
+  StorageCapacity:
+    Default: 1024
+    Description: Specify the storage capacity of the file system being created, in gibibytes. Minimum 1024 GiB; Maximum 192 TiB.
+    Type: Number
+  FSxAllowedCIDR:
+    Description: Specify the CIDR block that is allowed access to FSx for NetApp ONTAP file system.
+    Type: String
+    Default: "0.0.0.0/0"
+  ThroughputCapacity:
+    Description: Sets the throughput capacity for the file system that you're creating. Valid values are 512, 1024, and 2048 MBps.
+    ConstraintDescription: Valid values are 512, 1024, and 2048 MBps.
+    AllowedValues: [128, 512, 1024, 2048]
+    Type: Number
+    Default: 128
+  WeeklyMaintenanceTime:
+     Description: Specify the preferred start time to perform weekly maintenance, formatted d:HH:MM in the UTC time zone
+     Default: '7:01:00'
+     Type: String
+  RootVolumeSecurityStyle: 
+     Description: The security style of the root volume of the SVM. Specify one of the following values, UNIX, NTFS or MIXED.
+     Type: String
+     Default: UNIX
+     AllowedValues: ["UNIX", "NTFS", "MIXED"]
+  SecondaryRegion:
+    Type: String
+    Default: us-east-2
+    Description: The secondary AWS region for multi-region resources
+    AllowedValues:
+      - us-east-2
+      - us-east-1
+      - us-west-1
+      - us-west-2
+      - ap-southeast-2
+      - ap-southeast-1
+      - ap-south-1
+      - ap-northeast-2
+      - ap-northeast-1
+      - eu-west-1
+      - eu-west-2
+    ConstraintDescription: Must be a valid AWS region code.
+
+  EKSClusterVersion:
+    Description: EKS Cluster Version
+    Type: String
+    Default: "1.33"
+    ConstraintDescription: Must be a valid eks version
+  Assets:
+    Description: "S3 Bucket location for Assets ex. s3://<s3-bucket-name>/<sub-folder-path>/assets/"
+    Type: String
+## ------------ VSCode INFRA ------------------------- 
+  KubectlVersion:
+    Description: VSCode IDE instance kubectl version
+    Type: String
+    Default: 1.33.0
+    ConstraintDescription: Must be a valid kubectl version
+  KubectlDate:
+    Description: kubectl version release date to be used. Ref - https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html
+    Type: String
+    Default: "2025-05-01"
+    ConstraintDescription: Must be a valid date 
+  # VSCode parameters 
+  VSCodeUser:
+    Type: String
+    Description: UserName for VSCode Server
+    Default: participant
+  InstanceName:
+    Type: String
+    Description: VSCode Server EC2 instance name
+    Default: VSCodeServer
+  InstanceVolumeSize:
+    Type: Number
+    Description: VSCode Server EC2 instance volume size in GB
+    Default: 100
+  InstanceType:
+    Description: VSCode Server EC2 instance type
+    Type: String
+    Default: t4g.medium
+    AllowedPattern: '^(t3|t4|c6|c7|m6|m7|m8)[g|i|a]?(d|n|dn|-flex)?\.(nano|micro|small|medium|large|[2|4|9|12|16|18|24|32|48]?xlarge)$'
+    ConstraintDescription: Must be a valid t, c or m series EC2 instance type
+  InstanceOperatingSystem:
+    Description: VSCode Server EC2 operating system
+    Type: String
+    Default: AmazonLinux-2023
+    AllowedValues: ['AmazonLinux-2023', 'Ubuntu-22', 'Ubuntu-24']
+  HomeFolder:
+    Type: String
+    Description: Folder to open in VS Code server
+    Default: environment
+  DevServerBasePath:
+    Type: String
+    Description: Base path for the application to be added to Nginx sites-available list
+    Default: app
+  DevServerPort:
+    Type: Number
+    Description: Port for the DevServer
+    Default: 8081
+  AssetZipS3Path:
+    Description: S3 path holding the asset zip file to be copied into the home folder. To not include any assets, leave blank
+    Type: String
+    Default: ''
+  BranchZipS3Path:
+    Description: S3 path holding the branches zip file to be checked into the git repo, with each folder being a branch. The content of each folder will added as under a branch, with the folder name being used as the branch name. To leave the empty, leave blank
+    Type: String
+    Default: ''
+  FolderZipS3Path:
+    Description: S3 path holding the folder zip file, with each folder being a subfolder of the home directory. Each folder will have its own local git repo. To not include any folders, leave blank
+    Type: String
+    Default: ''
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: "10.0.0.0/16"
+    Private1:
+      CIDR: "10.0.0.0/24"
+    Private2:
+      CIDR: "10.0.1.0/24"
+    Public1:
+      CIDR: "10.0.100.0/24"
+    Public2:
+      CIDR: "10.0.101.0/24"
+    # This mapping accounts for the scenario when certain AZs
+    # are not available to use (this differs on a per account
+    # per customer basis). E.g., if the 'b' AZ is not available
+    # in a specific region in one's account then updating the
+    # list contained in the mapping below here will allow a
+    # different AZ to be chosen.
+  AZRegions:
+    us-east-1:
+      AZs: ["a", "b"]
+    us-east-2:
+      AZs: ["a", "b"]
+    us-west-1:
+      AZs: ["a", "b"]
+    us-west-2:
+      AZs: ["a", "b"]
+    ap-northeast-1:
+      AZs: ["a", "b"]
+    ap-northeast-2:
+      AZs: ["a", "b"]
+    ap-northeast-3:
+      AZs: ["a", "b"]
+    ap-east-1:
+      AZs: ["a", "b"]
+    ap-south-1:
+      AZs: ["a", "b"]
+    ap-southeast-1:
+      AZs: ["a", "b"]
+    ap-southeast-2:
+      AZs: ["a", "b"]
+    ap-southeast-3:
+      AZs: ["a", "b"]
+    ca-central-1:
+      AZs: ["a", "b"]
+    eu-central-1:
+      AZs: ["a", "b"]
+    eu-west-1:
+      AZs: ["a", "b"]
+    eu-west-2:
+      AZs: ["a", "b"]
+    eu-west-3:
+      AZs: ["a", "b"]
+    eu-south-1:
+      AZs: ["a", "b"]
+    eu-north-1:
+      AZs: ["a", "b"]
+    sa-east-1:
+      AZs: ["a", "b"]
+    af-south-1:
+      AZs: ["a", "b"]
+    me-south-1:
+      AZs: ["a", "b"]
+
+#VSCode Mappings
+  ArmImage:
+  # aws ssm get-parameters-by-path --path "/aws/service/canonical/ubuntu/" --recursive --query "Parameters[*].Name"  > canonical-ami.txt
+  # aws ssm get-parameters-by-path --path "/aws/service/ami-amazon-linux-latest/" --recursive --query "Parameters[*].Name"  > amazon-ami.txt
+    Ubuntu-22:
+      ImageId: '{{resolve:ssm:/aws/service/canonical/ubuntu/server/jammy/stable/current/arm64/hvm/ebs-gp2/ami-id}}'
+    Ubuntu-24:
+      ImageId: '{{resolve:ssm:/aws/service/canonical/ubuntu/server/noble/stable/current/arm64/hvm/ebs-gp3/ami-id}}'
+    AmazonLinux-2023:
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64}}'
+  AmdImage:
+    Ubuntu-22:
+      ImageId: '{{resolve:ssm:/aws/service/canonical/ubuntu/server/jammy/stable/current/amd64/hvm/ebs-gp2/ami-id}}'
+    Ubuntu-24:
+      ImageId: '{{resolve:ssm:/aws/service/canonical/ubuntu/server/noble/stable/current/amd64/hvm/ebs-gp3/ami-id}}'
+    AmazonLinux-2023:
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+  AWSRegions2PrefixListID:
+  # aws ec2 describe-managed-prefix-lists  --region <REGION> | jq -r '.PrefixLists[] | select (.PrefixListName == "com.amazonaws.global.cloudfront.origin-facing") | .PrefixListId'
+    ap-northeast-1:
+      PrefixList: pl-58a04531
+    ap-northeast-2:
+      PrefixList: pl-22a6434b
+    ap-south-1:
+      PrefixList: pl-9aa247f3
+    ap-southeast-1:
+      PrefixList: pl-31a34658
+    ap-southeast-2:
+      PrefixList: pl-b8a742d1
+    ca-central-1:
+      PrefixList: pl-38a64351
+    eu-central-1:
+      PrefixList: pl-a3a144ca
+    eu-north-1:
+      PrefixList: pl-fab65393
+    eu-west-1:
+      PrefixList: pl-4fa04526
+    eu-west-2:
+      PrefixList: pl-93a247fa
+    eu-west-3:
+      PrefixList: pl-75b1541c
+    sa-east-1:
+      PrefixList: pl-5da64334
+    us-east-1:
+      PrefixList: pl-3b927c52
+    us-east-2:
+      PrefixList: pl-b6a144df
+    us-west-1:
+      PrefixList: pl-4ea04527
+    us-west-2:
+      PrefixList: pl-82a045eb
+
+Conditions: 
+  # VSCode Conditions
+  IsAL2023: !Equals [!Ref InstanceOperatingSystem, 'AmazonLinux-2023']
+  IsGraviton: !Or
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 't4g']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'c6g']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'c7g']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'c7gd']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'c8g']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'm6g']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'm6gd']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'm7g']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'm7gd']
+    - !Equals [ !Select [ 0, !Split ['.', !Ref InstanceType ]], 'm8g']
+
+Resources:
+
+### VSCode Resources
+  SecretPlaintextLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - !Sub lambda.${AWS::URLSuffix}
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AwsSecretsManager
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref VSCodeSecret
+
+  SecretPlaintextLambda:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Warning incorrectly reported. The role associated with the Lambda function has the AWSLambdaBasicExecutionRole managed policy attached, which includes permission to write CloudWatch Logs. See https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSLambdaBasicExecutionRole.html
+          - id: W89
+            reason: CloudFormation custom function does not need the scaffolding of a VPC, to do so would add unnecessary complexity
+          - id: W92
+            reason: CloudFormation custom function does not need reserved concurrent executions, to do so would add unnecessary complexity
+    Properties:
+      Description: Return the value of the secret
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 10
+      Architectures:
+        - arm64
+      Role: !GetAtt SecretPlaintextLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import cfnresponse
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def is_valid_json(json_string):
+            logger.debug('Calling is_valid_jason: %s', json_string)
+            try:
+              json.loads(json_string)
+              logger.info('Secret is in json format')
+              return True
+            except json.JSONDecodeError:
+              logger.info('Secret is in string format')
+              return False
+          def lambda_handler(event, context):
+            try:
+              if event['RequestType'] == 'Delete':
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+              else:
+                secret_name = (event['ResourceProperties']['SecretArn'])
+                secrets_mgr = boto3.client('secretsmanager')
+                secret = secrets_mgr.get_secret_value(SecretId = secret_name)
+                logger.info('Getting secret from %s', secret_name)
+                secret_value = secret['SecretString']
+                logger.debug('secret_value: %s', secret_value)
+                responseData = {}
+                if is_valid_json(secret_value):
+                  responseData = secret_value
+                else:
+                  responseData = {'secret': secret_value}
+                logger.debug('responseData: %s', responseData)
+                logger.debug('type(responseData): %s', type(responseData))
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData=json.loads(responseData), reason='OK', noEcho=True)
+            except Exception as e:
+                logger.error(e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+
+  RunVSCodeSSMDoc:
+    DependsOn: [VSCodeInstance]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 900
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref VSCodeSSMDoc
+      DeleteDocumentName: ""
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${VSCodeSSMDoc}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+
+  VSCodeSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Bootstrap VSCode code-server instance
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          NodeVersion:
+            type: String
+            default: '20'
+            allowedValues:
+              - '22'
+              - '20'
+              - '18'
+          DotNetVersion:
+            type: String
+            default: '8.0'
+            allowedValues:
+              - '8.0'
+              - '7.0'
+        # all mainSteps scripts are in in /var/lib/amazon/ssm/<instanceid>/document/orchestration/<uuid>/<StepName>/_script.sh
+        mainSteps:
+          - action: aws:configurePackage
+            name: InstallCloudWatchAgent
+            inputs:
+              name: AmazonCloudWatchAgent
+              action: Install
+          - action: aws:runDocument
+            name: ConfigureCloudWatchAgent
+            inputs:
+              documentType: SSMDocument
+              documentPath: AmazonCloudWatch-ManageAgent
+              documentParameters:
+                action: configure
+                mode: ec2
+                optionalConfigurationSource: default
+                optionalRestart: 'yes'
+          - action: aws:runShellScript
+            name: InstallAptPackagesApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q apt-utils
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q needrestart unattended-upgrades
+                - sed -i 's/#$nrconf{kernelhints} = -1;/$nrconf{kernelhints} = 0;/' /etc/needrestart/needrestart.conf
+                - sed -i 's/#$nrconf{verbosity} = 2;/$nrconf{verbosity} = 0;/' /etc/needrestart/needrestart.conf
+                - sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'a';/" /etc/needrestart/needrestart.conf
+                - echo "Apt helper packages added. Checking configuration"
+                - cat /etc/needrestart/needrestart.conf
+          - action: aws:runShellScript
+            name: InstallBasePackagesDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y --allowerasing whois argon2 unzip nginx curl gnupg openssl 
+          - action: aws:runShellScript
+            name: InstallBasePackagesApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q curl gnupg whois argon2 openssl locales locales-all unzip apt-transport-https ca-certificates software-properties-common nginx
+          - action: aws:runShellScript
+            name: AddUserDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub |
+                  echo 'Adding user: ${VSCodeUser}'
+                  adduser -c '' ${VSCodeUser}
+                  passwd -l ${VSCodeUser}
+                  echo "${VSCodeUser}:{{ VSCodePassword }}" | chpasswd
+                  usermod -aG wheel ${VSCodeUser}
+                - echo "User added. Checking configuration"
+                - !Sub getent passwd ${VSCodeUser}
+          - action: aws:runShellScript
+            name: AddUserApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub |
+                  if [[ "${VSCodeUser}" == "ubuntu" ]]
+                  then
+                    echo 'Using existing user: ${VSCodeUser}'
+                  else
+                    echo 'Adding user: ${VSCodeUser}'
+                    adduser --disabled-password --gecos '' ${VSCodeUser}
+                    echo "${VSCodeUser}:{{ VSCodePassword }}" | chpasswd
+                    usermod -aG sudo ${VSCodeUser}
+                  fi
+                - !Sub |
+                  tee /etc/sudoers.d/91-vscode-user <<EOF
+                  ${VSCodeUser} ALL=(ALL) NOPASSWD:ALL
+                  EOF
+                - !Sub mkdir -p /home/${VSCodeUser} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "User added. Checking configuration"
+                - !Sub getent passwd ${VSCodeUser}
+          - action: aws:runShellScript
+            name: InstallNodeDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y nodejs npm
+                - npm install -g npm@latest
+                - echo "Node and npm installed. Checking configuration"
+                - node -v
+                - npm -v
+          - action: aws:runShellScript
+            name: InstallNodeApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                # - curl -fsSL https://deb.nodesource.com/setup_20.x | sh
+                - curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+                - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_{{ NodeVersion }}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q nodejs
+                - npm install -g npm@latest
+                - echo "Node and npm installed. Checking configuration"
+                - node -v
+                - npm -v
+          - action: aws:runShellScript
+            name: InstallAWSCLI
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip -o /tmp/aws-cli.zip
+                - unzip -q -d /tmp /tmp/aws-cli.zip
+                - sudo /tmp/aws/install
+                - rm -rf /tmp/aws
+                - echo "AWS CLI installed. Checking configuration"
+                - aws --version
+          - action: aws:runShellScript
+            name: ConfigureCodeServer
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub export HOME=/home/${VSCodeUser}
+                - curl -fsSL https://code-server.dev/install.sh | bash -s -- 2>&1
+                - !Sub systemctl enable --now code-server@${VSCodeUser} 2>&1
+                - !Sub |
+                  tee /etc/nginx/conf.d/code-server.conf <<EOF
+                  server {
+                      listen 80;
+                      listen [::]:80;
+                      # server_name \$\{CloudFrontDistribution.DomainName\};
+                      server_name *.cloudfront.net;
+                      location / {
+                        proxy_pass http://localhost:8080/;
+                        proxy_set_header Host \$host;
+                        proxy_set_header Upgrade \$http_upgrade;
+                        proxy_set_header Connection upgrade;
+                        proxy_set_header Accept-Encoding gzip;
+                      }
+                      location /${DevServerBasePath} {
+                        proxy_pass http://localhost:${DevServerPort}/${DevServerBasePath};
+                        proxy_set_header Host \$host;
+                        proxy_set_header Upgrade \$http_upgrade;
+                        proxy_set_header Connection upgrade;
+                        proxy_set_header Accept-Encoding gzip;
+                      }
+                  }
+                  EOF
+                - !Sub mkdir -p /home/${VSCodeUser}/.config/code-server
+                - !Sub |
+                  tee /home/${VSCodeUser}/.config/code-server/config.yaml <<EOF
+                  cert: false
+                  auth: password
+                  hashed-password: "$(echo -n {{ VSCodePassword }} | argon2 $(openssl rand -base64 12) -e)"
+                  EOF
+                - !Sub mkdir -p /home/${VSCodeUser}/.local/share/code-server/User/
+                - !Sub touch /home/${VSCodeUser}/.hushlogin
+                - !Sub mkdir -p /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                - !Sub |
+                  tee /home/${VSCodeUser}/.local/share/code-server/User/settings.json <<EOF
+                  {
+                    "extensions.autoUpdate": false,
+                    "extensions.autoCheckUpdates": false,
+                    "telemetry.telemetryLevel": "off",
+                    "security.workspace.trust.startupPrompt": "never",
+                    "security.workspace.trust.enabled": false,
+                    "security.workspace.trust.banner": "never",
+                    "security.workspace.trust.emptyWindow": false,
+                    "python.testing.pytestEnabled": true,
+                    "auto-run-command.rules": [
+                      {
+                        "command": "workbench.action.terminal.new"
+                      }
+                    ]
+                  }
+                  EOF
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - !Sub systemctl restart code-server@${VSCodeUser}
+                - systemctl restart nginx
+                - !Sub sudo -u ${VSCodeUser} --login code-server --install-extension AmazonWebServices.aws-toolkit-vscode --force
+                - !Sub sudo -u ${VSCodeUser} --login code-server --install-extension AmazonWebServices.amazon-q-vscode --force
+                - !Sub sudo -u ${VSCodeUser} --login code-server --install-extension synedra.auto-run-command --force
+                - !Sub sudo -u ${VSCodeUser} --login code-server --install-extension vscjava.vscode-java-pack --force
+                - !Sub sudo -u ${VSCodeUser} --login code-server --install-extension ms-vscode.live-server --force
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "Nginx installed. Checking configuration"
+                - nginx -t 2>&1
+                - systemctl status nginx
+                - echo "CodeServer installed. Checking configuration"
+                - code-server -v
+                - !Sub systemctl status code-server@${VSCodeUser}
+          - action: aws:runShellScript
+            name: UpdateProfile
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - echo LANG=en_US.utf-8 >> /etc/environment
+                - echo LC_ALL=en_US.UTF-8 >> /etc/environment
+                - !Sub echo 'PATH=$PATH:/home/${VSCodeUser}/.local/bin' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export PATH' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export AWS_REGION=${AWS::Region}' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export AWS_ACCOUNTID=${AWS::AccountId}' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export NEXT_TELEMETRY_DISABLED=1' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo "export PS1='\[\033[01;32m\]\u:\[\033[01;34m\]\w\[\033[00m\]\$ '" >> /home/${VSCodeUser}/.bashrc
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+          - action: aws:runShellScript
+            name: InstallDockerDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y docker
+                - !Sub usermod -aG docker ${VSCodeUser}
+                - !Sub systemctl restart code-server@${VSCodeUser}.service
+                - systemctl start docker.service
+                - echo "Docker installed. Checking configuration"
+                - docker --version
+                - systemctl status docker.service
+          - action: aws:runShellScript
+            name: InstallDockerApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                # - curl -fsSL https://get.docker.com | bash
+                - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+                - echo "deb [signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release --codename --short) stable" > /etc/apt/sources.list.d/docker.list
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q docker-ce docker-ce-cli containerd.io
+                - !Sub systemctl restart code-server@${VSCodeUser}.service
+                - systemctl start docker.service
+                - echo "Docker installed. Checking configuration"
+                - docker --version
+                - systemctl status docker.service
+          - action: aws:runShellScript
+            name: InstallGitDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y git
+                - !Sub sudo -u ${VSCodeUser} git config --global user.email "participant@example.com"
+                - !Sub sudo -u ${VSCodeUser} git config --global user.name "Workshop Participant"
+                - !Sub sudo -u ${VSCodeUser} git config --global init.defaultBranch "main"
+                - echo "Git installed. Checking configuration"
+                - git --version
+          - action: aws:runShellScript
+            name: InstallGitApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - add-apt-repository ppa:git-core/ppa
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q git
+                - !Sub sudo -u ${VSCodeUser} git config --global user.email "participant@example.com"
+                - !Sub sudo -u ${VSCodeUser} git config --global user.name "Workshop Participant"
+                - !Sub sudo -u ${VSCodeUser} git config --global init.defaultBranch "main"
+                - echo "Git installed. Checking configuration"
+                - git --version
+          - action: aws:runShellScript
+            name: InstallPythonDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                # AL2023 currently ships with Python 3.9 preinstalled, but 3.11 is available in the repository
+                # Install 3.11 alongside 3.9 and setup some alias so that 3.11 is loaded when participant runs Python3
+                # If Python 3.12 become available, update below
+                - '#!/bin/bash'
+                - dnf install -y python3.11 python3.11-pip python3-virtualenv python3-pytest python3-boto3
+                - !Sub echo 'alias pytest=pytest-3' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'alias python3=python3.11' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'alias pip3=pip3.11' >> /home/${VSCodeUser}/.bashrc
+                - echo 'alias=python3=python3.11' >> ~/.bashrc
+                - echo 'alias pip3=pip3.11' >> ~/.bashrc
+                - python3.11 -m pip install --upgrade pip 2>&1
+                - echo "Python and Pip installed. Checking configuration"
+                - python3.11 --version
+                - python3.11 -m pip --version 2>&1
+          - action: aws:runShellScript
+            name: InstallPythonApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                # Ubuntu 22 default is Python 3.10
+                # Ubuntu 24 default is Python 3.12
+                # The default installed Python version will map to Python3
+                - '#!/bin/bash'
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q python3-pip python3-venv python3-boto3 python3-pytest
+                - !Sub echo 'alias pytest=pytest-3' >> /home/${VSCodeUser}/.bashrc
+                - !Sub systemctl restart code-server@${VSCodeUser}.service
+                - systemctl start multipathd.service packagekit.service
+                - systemctl restart unattended-upgrades.service
+                - echo "Python and Pip installed. Checking configuration"
+                - python3 --version
+                - pip3 --version
+          - action: aws:runShellScript
+            name: InstallCDK
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - npm install -g aws-cdk
+                - echo "AWS CDK installed. Checking configuration"
+                - cdk --version
+          - action: aws:runShellScript
+            name: InstallGoDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y golang
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "Go installed. Checking configuration"
+                - go version
+          - action: aws:runShellScript
+            name: InstallGoApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - add-apt-repository ppa:longsleep/golang-backports
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q golang-go
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "Go installed. Checking configuration"
+                - go version
+          - action: aws:runShellScript
+            name: InstallDotnetDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y dotnet-sdk-{{ DotNetVersion }}
+                - sudo dotnet tool install -g Microsoft.Web.LibraryManager.Cli
+                - !Sub echo 'PATH=$PATH:/home/${VSCodeUser}/.dotnet/tools' >> /home/${VSCodeUser}/.bashrc
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "Dotnet installed. Checking configuration"
+                - dotnet --list-sdks
+          - action: aws:runShellScript
+            name: InstallDotnetApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q dotnet-sdk-{{ DotNetVersion }}
+                - sudo dotnet tool install -g Microsoft.Web.LibraryManager.Cli
+                - !Sub echo 'PATH=$PATH:/home/${VSCodeUser}/.dotnet/tools' >> /home/${VSCodeUser}/.bashrc
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "Dotnet installed. Checking configuration"
+                - dotnet --list-sdks
+          - action: aws:runShellScript
+            name: InstallVite
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - npm install -g create-vite
+                - echo "Vite installed. Checking configuration"
+                - create-vite -h
+          - action: aws:runShellScript
+            name: InstallJavaDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf install -y java-21-amazon-corretto java-17-amazon-corretto java-1.8.0-amazon-corretto maven
+                - !Sub echo 'export JAVA_1_8_HOME=$(dirname $(dirname $(readlink -f $(which java))))' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export PATH=$PATH:$JAVA_HOME/bin:/usr/share/maven/bin' >> /home/${VSCodeUser}/.bashrc
+                - echo "Java and Maven installed. Checking configuration"
+                - java -version 2>&1
+                - mvn --version
+                - update-alternatives --display java
+          - action: aws:runShellScript
+            name: InstallJavaApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - curl -fsSL https://apt.corretto.aws/corretto.key | gpg --dearmor -o /usr/share/keyrings/corretto-keyring.gpg
+                - echo "deb [signed-by=/usr/share/keyrings/corretto-keyring.gpg] https://apt.corretto.aws stable main" > /etc/apt/sources.list.d/corretto.list
+                - DEBIAN_FRONTEND=noninteractive apt-get update
+                - DEBIAN_FRONTEND=noninteractive apt-get install -y -q java-21-amazon-corretto-jdk java-17-amazon-corretto-jdk java-1.8.0-amazon-corretto-jdk maven
+                - !Sub echo 'export JAVA_1_8_HOME=$(dirname $(dirname $(readlink -f $(which java))))' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))' >> /home/${VSCodeUser}/.bashrc
+                - !Sub echo 'export PATH=$PATH:$JAVA_HOME/bin:/usr/share/maven/bin' >> /home/${VSCodeUser}/.bashrc
+                - echo "Java and Maven installed. Checking configuration"
+                - java -version 2>&1
+                - mvn --version
+                - update-alternatives --list java
+          - action: aws:runShellScript
+            name: InstallRust
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub sudo -u ${VSCodeUser} --login curl -fsSL https://sh.rustup.rs -o rust_install.sh
+                - !Sub sudo -u ${VSCodeUser} --login bash rust_install.sh -y 2>&1
+                - !Sub chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}
+                - echo "Rust installed. Checking configuration"
+                - !Sub sudo -u ${VSCodeUser} --login rustc --version
+          - action: aws:runShellScript
+            name: InstallTerraformDnf
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - dnf config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+                - dnf -y install terraform 2>&1
+                - echo "Terraform installed. Checking configuration"
+                - terraform --version
+          - action: aws:runShellScript
+            name: InstallTerraformApt
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - ubuntu
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-keyring.gpg
+                - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-keyring.gpg] https://apt.releases.hashicorp.com/ $(lsb_release --codename --short) main" >> /etc/apt/sources.list.d/hashicorp.list
+                - apt-get -q update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q terraform
+                - echo "Terraform installed. Checking configuration"
+                - terraform --version
+          - action: aws:runShellScript
+            name: DownloadAssets
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub |
+                  if [[ -z "${AssetZipS3Path}" ]]
+                  then
+                    echo "No assets"
+                  else
+                    mkdir -p /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                    aws s3 cp s3://${AssetZipS3Path} /tmp/assets.zip
+                    unzip -o /tmp/assets.zip -d /home/${VSCodeUser}/${HomeFolder}
+                    chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} init
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} add .
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} commit -m 'Initial commit'
+                    echo "Assets downloaded. Checking configuration: /home/${VSCodeUser}/${HomeFolder}"
+                    ls -la /home/${VSCodeUser}/${HomeFolder}
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} branch
+                  fi
+          - action: aws:runShellScript
+            name: DownloadFolders
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub |
+                  if [[ -z "${FolderZipS3Path}" ]]
+                  then
+                    echo "No folders"
+                  else
+                    rm -rf /tmp/folder
+                    mkdir -p /tmp/folder && chown -R ${VSCodeUser}:${VSCodeUser} /tmp/folder
+                    aws s3 cp s3://${FolderZipS3Path} /tmp/asset-folder.zip
+                    unzip -o /tmp/asset-folder.zip -d /tmp/folder
+                    chown -R ${VSCodeUser}:${VSCodeUser} /tmp/folder
+                    mkdir -p /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                    cd "/home/${VSCodeUser}/${HomeFolder}" && cd ..
+                    if [[ $(pwd) ==  "/" ]]
+                    then
+                      targetRootFolder=""
+                    else
+                      targetRootFolder=$(pwd)
+                      chown -R ${VSCodeUser}:${VSCodeUser} .
+                    fi
+                    find "/tmp/folder" -maxdepth 1 -mindepth 1 -type d | while read sourceFolder; do
+                      folder="$(basename $sourceFolder)"
+                      echo $folder
+                      targetFolder=$targetRootFolder/$folder
+                      if [[ $targetRootFolder == "" ]]
+                      then
+                        mv $sourceFolder /
+                      else
+                        mv $sourceFolder $targetRootFolder
+                      fi
+                      chown -R ${VSCodeUser}:${VSCodeUser} $targetFolder
+                      sudo -u ${VSCodeUser} git -C $targetFolder init
+                      sudo -u ${VSCodeUser} git -C $targetFolder add .
+                      sudo -u ${VSCodeUser} git -C $targetFolder commit -m "Initial commit"
+                      echo "Folder downloaded. Checking configuration: $targetFolder"
+                      ls -la $targetFolder
+                    done
+                    rm -rf /tmp/folder
+                  fi
+          - action: aws:runShellScript
+            name: DownloadBranches
+            inputs:
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub |
+                  if [[ -z "${BranchZipS3Path}" ]]
+                  then
+                    echo "No branches"
+                  else
+                    rm -rf /tmp/branch
+                    mkdir -p /tmp/branch && chown -R ${VSCodeUser}:${VSCodeUser} /tmp/branch
+                    mkdir -p /tmp/git && chown -R ${VSCodeUser}:${VSCodeUser} /tmp/git
+                    aws s3 cp s3://${BranchZipS3Path} /tmp/branch/branch.zip
+                    unzip -o /tmp/branch/branch.zip -d /tmp/branch
+                    chown -R ${VSCodeUser}:${VSCodeUser} /tmp/branch
+                    mkdir -p /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} init
+                    mv /home/${VSCodeUser}/${HomeFolder}/.git /tmp/git
+                    rm -rf /home/${VSCodeUser}/${HomeFolder}
+                    mkdir -p /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                    mv /tmp/git/.git /home/${VSCodeUser}/${HomeFolder}
+                    find /tmp/branch -maxdepth 1 -mindepth 1 -type d | while read sourceFolder; do
+                      branch="$(basename $sourceFolder)"
+                      echo $branch
+                      sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} checkout -b $branch 2>&1
+                      cp -a $sourceFolder/. /home/${VSCodeUser}/${HomeFolder}
+                      sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} add .
+                      sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} commit -m "Initial commit $branch"
+                      mv /home/${VSCodeUser}/${HomeFolder}/.git /tmp/git
+                      rm -rf /home/${VSCodeUser}/${HomeFolder}
+                      mkdir /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+                      mv /tmp/git/.git /home/${VSCodeUser}/${HomeFolder}
+                    done
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} checkout main 2>&1
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} restore .
+                    echo "Branches downloaded. Checking configuration: $HomeFolder"
+                    sudo -u ${VSCodeUser} git -C /home/${VSCodeUser}/${HomeFolder} branch
+                    ls -la /home/${VSCodeUser}/${HomeFolder}
+                  fi
+
+  SSMCommandMonitorQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      # QueueName: ssm-command-monitor-queue
+      VisibilityTimeout: 300  # 5 minutes
+      DelaySeconds: 0
+      MaximumMessageSize: 262144  # 256 KB
+      MessageRetentionPeriod: 1209600  # 14 days
+      ReceiveMessageWaitTimeSeconds: 20
+
+## ------------ COMMON INFRA ------------------------- 
+# Make sure to include your SSM doc permission here so lambda can invoke those SSM doc
+  RunSSMDocLambdaRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: The Amazon EC2 ec2:Describe* API actions do not support resource-level permissions, so you cannot control which individual resources users can view in the console. Therefore, the * wildcard is necessary in the Resource element. See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-policies-ec2-console.html
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: RunSSMDocOnEC2
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${VSCodeSSMDoc}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${WorkshopPreparationDocument}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CreatePrimaryEKSCluster}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeletePrimaryEKSCluster}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CreateS3BucketsAndReplicationRole}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeleteS3bucketsforFSxLustre}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CreateFSxLustreSecurityGroup}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeleteFSxLustreSecurityGroup}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CreateFSxOpenZFSSecurityGroup}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${DeleteFSxOpenZFSSecurityGroup}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CreateSecondaryRegionEKSCluster}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CleanupSecondaryRegionResources}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${SetupFSxLustreStorageForSecondaryEKS}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/${CleanupFSxLustreStorageForSecondaryEKS}
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:document/AmazonCloudWatch-ManageAgent
+                  - !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VSCodeInstance}
+        - PolicyName: DescribeEC2
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                Resource: "*"
+        - PolicyName: ChekcSSMDocCompletionOnEC2
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:DescribeInstanceInformation
+                  - ssm:GetCommandInvocation
+                  - ssm:ListCommandInvocations
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:*
+        - PolicyName: InvokeLambda
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
+        - PolicyName: SQSPermissions
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt SSMCommandMonitorQueue.Arn
+
+# Common Lambda function which recursively invokes SSM doc on VS Code instance to provision your workshop resources and singal CFN stack about success/failure
+  RunSSMDocLambda:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Warning incorrectly reported. The role associated with the Lambda function has the AWSLambdaBasicExecutionRole managed policy attached, which includes permission to write CloudWatch Logs. See https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSLambdaBasicExecutionRole.html
+          - id: W89
+            reason: CloudFormation custom function does not need the scaffolding of a VPC, to do so would add unnecessary complexity
+          - id: W92
+            reason: CloudFormation custom function does not need reserved concurrent executions, to do so would add unnecessary complexity
+    Properties:
+      Description: Run SSM document on EC2 instance
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 900 # Keep this timeout atleast 120 or more upto 900, else lambda invocation will keep blocking command status check.
+      Architectures:
+        - arm64
+      Role: !GetAtt RunSSMDocLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          import json
+          import time
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          ssm = boto3.client('ssm')
+          sqs = boto3.client('sqs')
+          lambda_client = boto3.client('lambda')
+
+          def lambda_handler(event, context):
+                  logger.info('event: %s', event)
+                  if 'InvokedByLambda' in event:
+                      # Invoked by the asynchronous self-invocation
+                  
+                      if event['RequestType'] == 'Create':
+                          logger.info(f'--- CONTINUE MONITORING ---: {event["ResourceProperties"]["DocumentName"]} --- RequestType: Continue Monitoring')
+
+                      if event['RequestType'] == 'Delete':
+                          logger.info(f'--- CONTINUE MONITORING ---: {event["ResourceProperties"]["DeleteDocumentName"]} --- RequestType: Continue Monitoring')
+                      
+                      return_status = process_sqs_messages(event, context)
+                      # Continue monitoring previous ssm command execution via preious lambda invocation based on SQS message
+
+                      match return_status:
+                          case "success":
+                              logger.info('InvokedByLambda: Successfully Processed SQS messages')
+                          case "fail":
+                              logger.info('InvokedByLambda: Fail Processing SQS messages')
+                          case "error":
+                              logger.info('InvokedByLambda: Error Processing SQS messages')
+                          case "skip":
+                              logger.info('InvokedByLambda: No action to take')
+                          case "continue":
+                              logger.info('InvokedByLambda: Continue: invoked lambda will monitor - do not signal back to stack')
+                          case _:                
+                              logger.info("InvokedByLambda: Unknown status")
+                              
+                  else:
+                      # Invoked by CloudFormation        
+                      logger.info(f'--- RUNNING ---: {event["ResourceProperties"]["DocumentName"]} --- RequestType: {event["RequestType"]}')
+
+                      return_status = run_ssm_document(event, context,  event['RequestType'])
+
+                      match return_status:
+                          case "success":
+                              logger.info('InvokedByCFN: Successfully executed command')
+                          case "fail":
+                              logger.info('InvokedByCFN: Fail executing command')
+                          case "error":
+                              logger.info('InvokedByCFN: Error Executing Command')
+                          case "skip":
+                              logger.info('InvokedByCFN: No action to take')
+                          case "continue":
+                              logger.info('InvokedByCFN: Continue: invoked lambda will monitor - do not signal back to stack')
+                          case _:                
+                              logger.info("InvokedByCFN: Unknown status")
+                  
+                  # Finally Send CFN Custom resource Signal 
+                  match return_status:
+                      case "success":
+                          logger.info("Successfully Executed Command")
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='Successfully Executed Command')
+                      case "fail":
+                          logger.info("Fail Executing Command")
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Fail Executing Command')
+                      case "error":
+                          logger.info("Error Executing Command")
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Error Executing Command')
+                      case "skip":
+                              logger.info('No action to take')
+                              cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+                      case "continue":
+                          logger.info("Continue: invoked lambda will monitor - do not signal back to stack")
+
+                      case _:                
+                          logger.info("Unknown status")
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Unknown status')
+
+          def run_ssm_document(event, context, operation):
+              # Executes only on CloudFormation Create or Delete
+              try:
+                  ec2 = boto3.client('ec2')
+                  ssm = boto3.client('ssm')
+                  instance_id = (event['ResourceProperties']['InstanceId'])
+                  cloudwatch_log_group_name = (event['ResourceProperties']['CloudWatchLogGroupName'])
+                  resource_properties = (event['ResourceProperties'])
+                  logger.debug('resource_properties: %s', resource_properties)
+
+                  match operation:
+                      case "Create":
+                          document_name = (event['ResourceProperties']['DocumentName'])
+                      case "Delete":
+                          document_name = event['ResourceProperties'].get('DeleteDocumentName')
+
+                          if document_name == "":
+                              logger.info('DeleteDocumentName not provided, skipping SSM document execution.')
+                              return "skip"
+                      case _:
+                          logger.info("run_ssm_document: CFN is being updated - no action")
+                          return "skip"
+
+                  parameters = {}
+                  for key, value in resource_properties.items():
+                      # Include all your SSM Doc Paramers here in this list
+                      if key in ['NodeVersion', 'LinuxFlavor', 'VSCodePassword', 'DotNetVersion', 'PublicSubnet01', 'PublicSubnet02', 'PrivateSubnet01', 'PrivateSubnet02', 'VPCIdentifier', 'PrimaryRegion', 'SecondaryRegion']:
+                          parameters[key] = [value]
+
+                  logger.debug(f'send_command parameters: {parameters}')
+
+                  check_interval_seconds = 10  # Adjust this value as needed
+                  max_wait_time = 300  # 5 minutes in seconds
+                  start_time = time.time()
+
+                  while True:
+                      # Get instance details
+                      instance_details = ec2.describe_instances(InstanceIds=[instance_id])['Reservations'][0]['Instances'][0]
+
+                      # Check instance state
+                      instance_state = instance_details['State']['Name']
+                      logger.info(f'Instance {instance_id} state is {instance_state}')
+                      
+                      # Get ping status from SSM
+                      ssm_response = ssm.describe_instance_information(Filters=[{'Key': 'InstanceIds', 'Values': [instance_id]}])
+                      if ssm_response['InstanceInformationList']:
+                          ping_status = ssm_response['InstanceInformationList'][0]['PingStatus']
+                          logger.info(f'Instance {instance_id} ssm ping status is {ping_status}')
+                      else:
+                          ping_status = 'Unknown'
+                          logger.warning(f'Instance {instance_id} ping status is unknown. SSM agent may not be installed or running.')
+                      
+                      if instance_state == 'running' and ping_status == 'Online':
+                          response = ssm.send_command(
+                              InstanceIds=[instance_id],
+                              DocumentName=document_name,
+                              CloudWatchOutputConfig={'CloudWatchLogGroupName': cloudwatch_log_group_name, 'CloudWatchOutputEnabled': True},
+                              Parameters=parameters
+                          )
+                          logger.debug(f'send_command response: {response}')
+                          command_id = response['Command']['CommandId']
+
+                          # Wait for a few seconds before checking the command status
+                          command_status_check_delay = 5  # Adjust this value as needed
+                          logger.info(f'Waiting for {command_status_check_delay} seconds before checking the command status.')
+                          time.sleep(command_status_check_delay)
+
+                          monitor_status = monitor_ssm_command(event, context, command_id, instance_id, document_name, cloudwatch_log_group_name, parameters)
+
+                          match monitor_status:
+                              case "success":
+                                  logger.info('run_ssm_document: Successfully executed command')
+                              case "fail":
+                                  logger.info('run_ssm_document: Fail executing command')
+                              case "error":
+                                  logger.info('run_ssm_document: Error Executing Command')
+                              case "skip":
+                                  logger.info('run_ssm_document: No action to take')
+                              case "continue":
+                                  logger.info('run_ssm_document: Continue: invoked lambda will monitor')
+                              case _:
+                                  logger.info("run_ssm_document: Unknown status")
+
+                          return monitor_status
+                      else:
+                          elapsed_time = time.time() - start_time
+                          if elapsed_time >= max_wait_time:
+                              logger.error(f'Maximum wait time ({max_wait_time} seconds) reached while waiting for the instance to be in the running state.')
+                              return "error"
+                          else:
+                              remaining_time = max_wait_time - elapsed_time
+                              logger.info(f'Instance {instance_id} is in the state: {instance_state} and ping status: Unknown. Retrying in {check_interval_seconds} seconds. Time remaining: {remaining_time:.0f} seconds.')
+                              time.sleep(check_interval_seconds)
+
+              except Exception as e:
+                  logger.error(e)
+                  logger.error('run_ssm_document: Error')
+                  return "error"
+
+
+          def process_sqs_messages(event, context):
+              # Invoked only from lambda async invocation
+              try:
+                  SQS_QUEUE_URL = (event['ResourceProperties']['MonitoringSQSQueue'])
+                  logger.info(f'Fetching SQS message')
+                  response = sqs.receive_message(
+                      QueueUrl=SQS_QUEUE_URL,
+                      MaxNumberOfMessages=1,  # Adjust this value based on your needs
+                      WaitTimeSeconds=20  # Adjust this value based on your needs
+                  )
+
+                  queue_messages = response.get('Messages', [])
+
+                  if not queue_messages:
+                      logger.info('No SQS messages found in the queue.')
+                      return "success"
+              except Exception as e:
+                  logger.error(f'Error retriving SQS message: {e}')
+                  return "error"
+
+              for message in queue_messages:
+                  try:
+                      message_body = json.loads(message['Body'])
+                      command_id = message_body['CommandId']
+                      instance_id = message_body['InstanceId']
+                      document_name = message_body['DocumentName']
+                      cloudwatch_log_group_name = message_body['CloudWatchLogGroupName']
+                      parameters = message_body['Parameters']
+
+                      logger.info(f'Processing SQS message for command ID: {command_id}')
+                      monitor_status = monitor_ssm_command(event, context, command_id, instance_id, document_name, cloudwatch_log_group_name, parameters)
+
+                      match monitor_status:
+                          case "success":
+                              logger.info('process_sqs_messages: Successfully executed command')
+                              sqs.delete_message(QueueUrl=SQS_QUEUE_URL, ReceiptHandle=message['ReceiptHandle'])
+                          case "fail":
+                              logger.info(f'process_sqs_messages: Fail Processing SQS message for command ID: {command_id}')
+                          case "error":
+                              logger.info(f'process_sqs_messages: Error Processing SQS message for command ID: {command_id}')
+                          case "skip":
+                              logger.info('process_sqs_messages: No action to take')
+                          case "continue":
+                              logger.info('process_sqs_messages: Continue: invoked lambda will monitor')
+                          case _:                
+                              logger.info("process_sqs_messages: Unknown status")
+                  
+                      return monitor_status
+
+                  except Exception as e:
+                      logger.error(f'Error processing SQS message: {e}')
+                      return "error"
+
+          def monitor_ssm_command(event, context, command_id, instance_id, document_name, cloudwatch_log_group_name, parameters):
+              # Called from run_ssm_document (first invocation create/delete) and process_sqs_messages (continue from lambda async invocations)
+              try:
+                  # Wait for a few seconds before checking the command status
+                  delay_seconds = 10  # Adjust this value as needed
+
+                  command_complete = False
+                  retries = 0
+
+                  while not command_complete :
+                      time_remaining = context.get_remaining_time_in_millis()
+                      # If lambda about to timeout then async self invoke 
+                      if time_remaining < 60000:  # 60 seconds before timeout
+                          logger.info('Lambda function is about to time out. Invoking itself asynchronously.')
+
+                          lambda_status=invoke_self_asynchronously(event, context, command_id, instance_id, document_name, cloudwatch_log_group_name, parameters)
+
+                          match lambda_status:
+                              case "success":
+                                  # Only here we need to use continue without sending CFN signal when lambda was invoked
+                                  logger.info('monitor_ssm_command: Successfully invoked lambda') 
+                                  return "continue"       
+                              case "fail":
+                                  logger.info('monitor_ssm_command: Fail to invoke lambda')  
+                                  return lambda_status               
+                              case "error":
+                                  logger.info('monitor_ssm_command: Error invoking lambda')     
+                                  return lambda_status                   
+                              case "skip":
+                                  logger.info('monitor_ssm_command: No action to take')   
+                                  return lambda_status                     
+                              case "continue":
+                                  logger.info('monitor_ssm_command: Continue: invoked lambda will monitor ')
+                                  return lambda_status
+                              case _:                
+                                  logger.info("monitor_ssm_command: Unknown status")
+                      
+                      # Monitor command status 
+                      result = ssm.get_command_invocation(
+                          CommandId=command_id,
+                          InstanceId=instance_id
+                      )
+                      if result['Status'] == 'Success':
+                          logger.info(f'SSM command {command_id} completed successfully.')
+                          command_complete = True
+                          return "success"
+                      elif result['Status'] == 'Failed':
+                          logger.error(f'SSM command {command_id} failed with reason: {result["StatusDetails"]}')
+                          command_complete = True
+                          return "fail"
+                      else:
+                          logger.info(f'SSM command {command_id} is still running. Sleeping for {delay_seconds} seconds. Retry count :{retries}')
+                          time.sleep(delay_seconds)
+                          retries += 1
+
+              except Exception as e:
+                  logger.error("There was error monitoring command")
+                  logger.error(e)
+                  return "error"
+
+          def invoke_self_asynchronously(event, context, command_id, instance_id, document_name, cloudwatch_log_group_name, parameters):                      
+              try:
+                  logger.debug('event: %s', event)                                
+                  invoke_payload = {
+                      'InvokedByLambda': True,
+                      'RequestType': event['RequestType'],
+                      'ServiceToken': event['ServiceToken'],
+                      'ServiceTimeout': event['ServiceTimeout'],
+                      'ResponseURL': event['ResponseURL'],
+                      'StackId': event['StackId'],
+                      'RequestId': event['RequestId'],
+                      'LogicalResourceId': event['LogicalResourceId'],
+                      'ResourceType': event['ResourceType'],
+                      'ResourceProperties': event['ResourceProperties'],
+                      'context': {
+                          'function_name': context.function_name,
+                          'function_version': context.function_version,
+                          'invoked_function_arn': context.invoked_function_arn,
+                          'memory_limit_in_mb': context.memory_limit_in_mb,
+                          'aws_request_id': context.aws_request_id,
+                          'log_group_name': context.log_group_name,
+                          'log_stream_name': context.log_stream_name
+                      }
+                  }
+
+                  logger.debug(f'invoke_payload: {json.dumps(invoke_payload)}')
+
+                  sqs_payload = {
+                      'CommandId': command_id,
+                      'InstanceId': instance_id,
+                      'DocumentName': document_name,
+                      'CloudWatchLogGroupName': cloudwatch_log_group_name,
+                      'Parameters': parameters,
+                      'RequestType': event['RequestType'],
+                      'ResourceProperties': event['ResourceProperties'],
+                      'StackId': event['StackId']
+                  }
+
+                  SQS_QUEUE_URL = (event['ResourceProperties']['MonitoringSQSQueue'])
+                  LAMBDA_FUNCTION_ARN = (event['ResourceProperties']['LambdaArn'])
+                  
+                  logger.info(f'Sending SQS message: {json.dumps(sqs_payload)} on Queue: {SQS_QUEUE_URL}')
+                  sqs_result = sqs.send_message(QueueUrl=SQS_QUEUE_URL, MessageBody=json.dumps(sqs_payload))
+
+                  if 'MessageId' in sqs_result:
+                      logger.info(f'SQS message sent successfully. Message ID: {sqs_result["MessageId"]}')
+                  else:
+                      logger.error(f'SQS message send failed: {sqs_result}')
+                      return "error"
+
+                  lambda_result = lambda_client.invoke(
+                      FunctionName=LAMBDA_FUNCTION_ARN,
+                      InvocationType='Event',
+                      Payload=json.dumps(invoke_payload)
+                  )
+
+                  if lambda_result['StatusCode'] in [200, 202, 204]:
+                      logger.info(f'Lambda {LAMBDA_FUNCTION_ARN} invoked successfully.')
+                      return "success"
+                  else:
+                      logger.error(f"Lambda {LAMBDA_FUNCTION_ARN} invoke failed with status code {lambda_result['StatusCode']}")
+                      if 'FunctionError' in lambda_result:
+                          logger.error(f"Function error: {lambda_result['FunctionError']}")
+                      if 'LogResult' in lambda_result:
+                          logger.error(f"Log result: {lambda_result['LogResult']}")
+                      return "fail"
+              except Exception as e:
+                  logger.error("There was an error inside invoke lambda function")
+                  logger.error(e)
+                  return "error"
+
+  VSCodeSecret:
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W77
+            reason: The default KMS Key used by Secrets Manager is appropriate for this password which will be used to log into VSCodeServer, which has very limited permissions. In addition this secret will not be required to be shared across accounts
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      # Name: !Ref InstanceName
+      Description: VSCode user details
+      GenerateSecretString:
+        PasswordLength: 16
+        SecretStringTemplate: !Sub '{"username":"${VSCodeUser}"}'
+        GenerateStringKey: 'password'
+        ExcludePunctuation: true
+
+  SecretPlaintext:
+    Type: Custom::SecretPlaintextLambda
+    Properties:
+      ServiceToken: !GetAtt SecretPlaintextLambda.Arn
+      ServiceTimeout: 15
+      SecretArn: !Ref VSCodeSecret
+
+  VSCodeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonQDeveloperAccess
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/ReadOnlyAccess
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess # Added For workshop
+
+  VSCodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref VSCodeInstanceRole
+
+  VSCodeInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If
+        - IsGraviton
+        - !FindInMap [ArmImage, !Ref InstanceOperatingSystem, ImageId]
+        - !FindInMap [AmdImage, !Ref InstanceOperatingSystem, ImageId]
+      InstanceType: !Ref InstanceType
+      BlockDeviceMappings:
+        - DeviceName: !If [IsAL2023, /dev/xvda, /dev/sda1]
+          Ebs:
+            VolumeSize: !Ref InstanceVolumeSize
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      Monitoring: true
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      IamInstanceProfile: !Ref VSCodeInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #cloud-config
+          hostname: ${InstanceName}
+          runcmd:
+            - !Sub mkdir -p /home/${VSCodeUser}/${HomeFolder} && chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/${HomeFolder}
+      Tags:
+      - Key: Name
+        Value: !Ref InstanceName
+
+  VSCodeInstanceCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        DefaultTTL: 86400
+        MaxTTL: 31536000
+        MinTTL: 1
+        Name: !Join ['-', ['VSCodeServer', !Select [4, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId]]]]]]
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: all
+          EnableAcceptEncodingGzip: False
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Accept-Charset
+              - Authorization
+              - Origin
+              - Accept
+              - Referer
+              - Host
+              - Accept-Language
+              - Accept-Encoding
+              - Accept-Datetime
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W10
+            reason: CloudFront Distribution access logging would require setup of an S3 bucket and changes in IAM, which add unnecessary complexity to the template
+          - id: W70
+            reason: Workshop Studio does not include a domain that can be used to provision a certificate, so it is not possible to setup TLS. See PFR EE-6016
+    Properties:
+      DistributionConfig:
+        Enabled: True
+        HttpVersion: http2and3
+        CacheBehaviors:
+          - AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - PATCH
+              - POST
+              - DELETE
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-cache-policies.html#managed-cache-policy-caching-disabled
+            Compress: False
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer - see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html#:~:text=When%20using%20AWS,47e4%2Db989%2D5492eafa07d3
+            TargetOriginId: !Sub CloudFront-${AWS::StackName}
+            ViewerProtocolPolicy: allow-all
+            PathPattern: '/proxy/*'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachePolicyId: !Ref VSCodeInstanceCachePolicy
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer - see https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html#:~:text=When%20using%20AWS,47e4%2Db989%2D5492eafa07d3
+          TargetOriginId: !Sub CloudFront-${AWS::StackName}
+          ViewerProtocolPolicy: allow-all
+        Origins:
+          - DomainName: !GetAtt VSCodeInstance.PublicDnsName
+            Id: !Sub CloudFront-${AWS::StackName}
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F1000
+            reason: All outbound traffic should be allowed from this instance. The EC2 instance is provisioned in the default VPC, which already has this egress rule, and it is not possible to duplicate this egress rule in the default VPC
+    Properties:
+      GroupDescription: SG for VSCodeServer - only allow CloudFront ingress
+      SecurityGroupIngress:
+        - Description: Allow HTTP from com.amazonaws.global.cloudfront.origin-facing
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId: !FindInMap [AWSRegions2PrefixListID, !Ref 'AWS::Region', PrefixList]
+
+  VSCodeHealthCheckLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - !Sub lambda.${AWS::URLSuffix}
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AwsSecretsManager
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref VSCodeSecret
+
+  VSCodeHealthCheckLambda:
+    Type: AWS::Lambda::Function
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Warning incorrectly reported. The role associated with the Lambda function has the AWSLambdaBasicExecutionRole managed policy attached, which includes permission to write CloudWatch Logs. See https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AWSLambdaBasicExecutionRole.html
+          - id: W89
+            reason: CloudFormation custom function does not need the scaffolding of a VPC, to do so would add unnecessary complexity
+          - id: W92
+            reason: CloudFormation custom function does not need reserved concurrent executions, to do so would add unnecessary complexity
+    Properties:
+      Description: Run health check on VSCode Server instance
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      MemorySize: 128
+      Timeout: 600
+      Architectures:
+        - arm64
+      Role: !GetAtt VSCodeHealthCheckLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import cfnresponse
+          import logging
+          import time
+          import http.client
+          from urllib.parse import urlparse
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          SLEEP_MS = 2900
+
+          def healthURLOk(url):
+              # Using try block to catch connection errors and JSON conversion errors
+              try:
+                  parsed_url = urlparse(url)
+                  if parsed_url.scheme == 'https':
+                      conn = http.client.HTTPSConnection(parsed_url.netloc)
+                  else:
+                      conn = http.client.HTTPConnection(parsed_url.netloc)
+
+                  conn.request("GET", parsed_url.path or "/")
+                  response = conn.getresponse()
+
+                  # This will be true for any return code below 4xx (so 3xx and 2xx)
+                  if 200 <= response.status < 400:
+                      content = response.read()
+                      logger.info(f'URL returned {response.status}, {content}')
+                      response_dict = json.loads(content.decode('utf-8'))
+                      # Checking for expected keys and if the key has the expected value
+                      if 'status' in response_dict and (response_dict['status'].lower() == 'alive' or response_dict['status'].lower() == 'expired'):
+                          # Response code 200 and correct JSON returned
+                          return True
+                      else:
+                          # Response code 200 but the 'status' key is either not present or does not have the value 'alive' or 'expired'
+                          return False
+                  else:
+                      # Response was not ok (error 4xx or 5xx)
+                      logger.debug(f'URL returned {response.status}')
+                      return False
+
+              except http.client.HTTPException as e:
+                  # URL malformed or endpoint not ready yet, this should only happen if we can not DNS resolve the URL
+                  logger.info(f'URL invalid and/or endpoint not ready yet: {str(e)}')
+                  return False
+
+              except json.decoder.JSONDecodeError:
+                  # The response we got was not a properly formatted JSON
+                  logger.error(f"Did not get JSON object from URL as expected: {str(e)}")
+                  return False
+
+              except Exception as e:
+                  logger.error(e)
+                  return False
+
+              finally:
+                  if 'conn' in locals():
+                      conn.close()
+
+          def is_valid_json(json_string):
+              try:
+                  json.loads(json_string)
+                  return True
+              except ValueError:
+                  return False
+
+          def lambda_handler(event, context):
+              logger.debug(f'event: %s', event)
+
+              try:
+                  if event['RequestType'] != 'Create':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+                  else:
+                      resource_properties = (event['ResourceProperties'])
+                      logger.debug(f'resource_properties: %s', resource_properties)
+                      url = (event['ResourceProperties']['Url'])
+                      logger.info(f'Testing url: {url}')
+                      time_remaining = context.get_remaining_time_in_millis()
+                      attempt_no = 0
+                      health_check = False
+                      while (attempt_no == 0 or (time_remaining > SLEEP_MS and not health_check)):
+                          attempt_no += 1
+                          logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining/1000}s')
+                          health_check = healthURLOk(url)
+                          if not health_check:
+                              time.sleep(SLEEP_MS/1000)
+                          time_remaining = context.get_remaining_time_in_millis()
+                      if health_check:
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='VSCode healthcheck successful')
+                      else:
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='VSCode healthcheck status not alive or expired. Timed out')
+              except Exception as e:
+                  logger.error(e)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+
+  Healthcheck:
+    DependsOn: [RunVSCodeSSMDoc]
+    Type: Custom::VSCodeHealthCheckLambda
+    Properties:
+      ServiceToken: !GetAtt VSCodeHealthCheckLambda.Arn
+      ServiceTimeout: 605
+      Url: !Sub https://${CloudFrontDistribution.DomainName}/healthz
+
+################################################################
+################################################################
+######################VPC and Subnets Creation##################
+################################################################
+################################################################
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "VPC"
+          - "CIDR"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Ref 'VPCName'
+
+  PrivateSubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId:
+        Ref: "VPC"
+      AvailabilityZone:
+        Fn::Sub:
+          - "${AWS::Region}${AZ}"
+          - AZ: !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Private1"
+          - "CIDR"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-private-'
+              - !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+
+  PrivateSubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId:
+        Ref: "VPC"
+      AvailabilityZone:
+        Fn::Sub:
+          - "${AWS::Region}${AZ}"
+          - AZ: !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Private2"
+          - "CIDR"
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-private-'
+              - !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+  
+  PublicSubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId:
+        Ref: "VPC"
+      AvailabilityZone:
+        Fn::Sub:
+          - "${AWS::Region}${AZ}"
+          - AZ: !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Public1"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-public-'
+              - !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+  
+  PublicSubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId:
+        Ref: "VPC"
+      AvailabilityZone:
+        Fn::Sub:
+          - "${AWS::Region}${AZ}"
+          - AZ: !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "Public2"
+          - "CIDR"
+      MapPublicIpOnLaunch: true
+      Tags:
+        -
+          Key: "Name"
+          Value: !Join
+            - ''
+            - - !Ref "VPCName"
+              - '-public-'
+              - !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+  
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${VPCName}-ITG"
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  # NatGateway2EIP:
+  #   Type: AWS::EC2::EIP
+  #   DependsOn: InternetGatewayAttachment
+  #   Properties:
+  #     Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  # NatGateway2:
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: !GetAtt NatGateway2EIP.AllocationId
+  #     SubnetId: !Ref PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VPCName} Public Routes
+  
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+  
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${VPCName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet2
+
+################################################
+###### FSx for NetApp ONTAP ####################
+################################################
+  FSxONTAPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: VPC
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Security Group for FSx for NetApp ONTAP Storage Access
+      SecurityGroupIngress:
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 111
+          ToPort: 111
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 139
+          ToPort: 139
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 161
+          ToPort: 161
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 162
+          ToPort: 162
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 445
+          ToPort: 445
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 635
+          ToPort: 635
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 749
+          ToPort: 749
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 3260
+          ToPort: 3260
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 4045
+          ToPort: 4045
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 4046
+          ToPort: 4046
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 11104
+          ToPort: 11104
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: tcp
+          FromPort: 11105
+          ToPort: 11105
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 111
+          ToPort: 111
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 135
+          ToPort: 135
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 137
+          ToPort: 137
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 139
+          ToPort: 139
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 161
+          ToPort: 161
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 162
+          ToPort: 162
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 635
+          ToPort: 635
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 2049
+          ToPort: 2049
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 4045
+          ToPort: 4045
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 4046
+          ToPort: 4046
+          CidrIp: !Ref FSxAllowedCIDR
+        - IpProtocol: udp
+          FromPort: 4049
+          ToPort: 4049
+          CidrIp: !Ref FSxAllowedCIDR
+  
+  ## Secret Manager
+  SMFsxAdminPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: FSx for NetApp ONTAP filesystem password for username fsxadmin
+      Name: !Sub "${AWS::StackName}-FsxAdminPassword"
+      #SecretString: !Sub '{"username":"fsxadmin","password":${FsxAdminPassword}}'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "fsxadmin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 12
+        ExcludeCharacters: "\"@/\\"
+        ExcludePunctuation: true
+      Tags:
+        - Key: "Name"
+          Value: "OntapFileSystem_filesystem_Password"
+  
+  SMSVMAdminPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Description: SVM Admin Password for username vsadmin
+      Name: !Sub "${AWS::StackName}-SVMAdminPassword"
+      #SecretString: !Sub '{"username":"vsadmin","password": ${SvmAdminPassword}}'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "vsadmin"}'
+        GenerateStringKey: "password"
+        PasswordLength: 12
+        ExcludeCharacters: "\"@/\\"
+        ExcludePunctuation: true
+      Tags:
+        - Key: "Name"
+          Value: "OntapFileSystem_SVM_Password"
+  
+  ## Create IAM Role and Policy to be able to retrieve Secrets Manager
+  SecretsManagerIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: 'TridentIAMPolicy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'secretsmanager:GetSecretValue'
+              - 'secretsmanager:DescribeSecret'
+            Resource:
+              - !Ref SMFsxAdminPassword
+              - !Ref SMSVMAdminPassword 
+
+  FSxONTAP:
+    Type: AWS::FSx::FileSystem
+    DependsOn: PrivateSubnet1
+    Properties:
+      FileSystemType: ONTAP
+      StorageCapacity: !Ref StorageCapacity
+      StorageType: SSD
+      SecurityGroupIds: 
+        - !GetAtt FSxONTAPSecurityGroup.GroupId
+      SubnetIds:
+        - !Ref PrivateSubnet1 ## Private Subnets
+        - !Ref PrivateSubnet2
+      OntapConfiguration:
+        AutomaticBackupRetentionDays: 3
+        DailyAutomaticBackupStartTime: "01:00"
+        DeploymentType: MULTI_AZ_1
+        DiskIopsConfiguration:
+          Mode: USER_PROVISIONED
+          Iops: 9000
+        PreferredSubnetId: !Ref PrivateSubnet1
+        RouteTableIds: #!Split
+          #- !GetAtt FSxONTAPRouteTable.RouteTableId
+          - !Ref PrivateRouteTable1
+          - !Ref PublicRouteTable
+        ThroughputCapacity: !Ref ThroughputCapacity
+        WeeklyMaintenanceStartTime: !Ref WeeklyMaintenanceTime
+        FsxAdminPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref SMFsxAdminPassword, ':SecretString:password}}' ]]
+      Tags:
+        - Key: "Name"
+          Value: "OntapFileSystem_MAZ"
+  
+  SVM1:        
+    Type: AWS::FSx::StorageVirtualMachine
+    DependsOn: FSxONTAP
+    Properties: 
+      FileSystemId: !Ref FSxONTAP
+      Name: SVM1
+      RootVolumeSecurityStyle: !Ref RootVolumeSecurityStyle
+      SvmAdminPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref SMSVMAdminPassword, ':SecretString:password}}' ]] 
+
+## ------------ WORKSHOP INFRA ------------------------- 
+  RunWorkshopPreparationDocument:
+    DependsOn: [RunVSCodeSSMDoc]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 900
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref WorkshopPreparationDocument
+      DeleteDocumentName: ""
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${WorkshopPreparationDocument}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+
+  WorkshopPreparationDocument:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Create Fsx, EKS, S3 ..etc resources for workshop requirement
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+        # all mainSteps scripts are in in /var/lib/amazon/ssm/<instanceid>/document/orchestration/<uuid>/<StepName>/_script.sh
+        mainSteps:
+          - action: aws:runShellScript
+            name: InstallAndConfigureKubectl
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023          
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  #!/bin/bash
+                  date                  
+                  echo '=== INSTALL kubectl ==='
+                  echo "KUBECTL_VERSION=${KubectlVersion}"
+                  export KUBECTL_VERSION=${KubectlVersion}
+                  echo "KUBECTL_DATE=${KubectlDate}"
+                  export KUBECTL_DATE=${KubectlDate}
+                  echo "Determine the architecture"
+                  export ARCH=$(uname -m)
+                  case $ARCH in
+                      x86_64)
+                          ARCH=amd64
+                          ;;
+                      aarch64)
+                          ARCH=arm64
+                          ;;
+                      # Add more cases if needed for other architectures
+                  esac
+                  echo "Architecture is " $ARCH
+                  echo "Downloading kubeclt binary"
+                  curl --silent --location -o /usr/local/bin/kubectl https://s3.us-west-2.amazonaws.com/amazon-eks/$KUBECTL_VERSION/$KUBECTL_DATE/bin/linux/$ARCH/kubectl
+                  echo "Download complete for kubeclt binary"
+                  ls -la /usr/local/bin/kubectl
+                  echo "Change to execution mode for kubeclt binary"
+                  chmod +x /usr/local/bin/kubectl
+                  ls -la /usr/local/bin/kubectl
+                  /usr/local/bin/kubectl version --client
+
+          - action: aws:runShellScript
+            name: SetupAWSCLIEnvironment
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023          
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  #!/bin/bash
+                  aws --version
+                  echo '=== Setup AWS CLI Default Region ==='
+                  echo "Account : ${AWS::AccountId}"
+                  echo "Region : ${AWS::Region}"
+                  export AWS_REGION=${AWS::Region}
+                  export AWS_ACCOUNTID=${AWS::AccountId}
+                  echo 'export AWS_ACCOUNTID=$AWS_ACCOUNTID' >> /home/${VSCodeUser}/.bashrc
+                  echo 'export AWS_REGION=$AWS_REGION' >> /home/${VSCodeUser}/.bashrc
+                  aws configure set default.region $AWS_REGION
+                  aws configure get default.region
+                  aws sts get-caller-identity
+
+          - action: aws:runShellScript
+            name: ConfigureKubectlAliases
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023          
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  #!/bin/bash
+                  # kubectl shortcuts
+                  echo "alias k=kubectl" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias ka=\"kubectl apply -f \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias ke=\"kubectl exec -it \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias kg=\"kubectl get \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias kd=\"kubectl describe \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias kdel=\"kubectl delete \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias ks=\"kubectl -n kube-system \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias ksg=\"kubectl -n kube-system get \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "alias ksd=\"kubectl -n kube-system describe \"" >> /home/${VSCodeUser}/.bashrc
+                  echo "export PATH=/home/${VSCodeUser}/go/bin:$PATH" >> /home/${VSCodeUser}/.bashrc
+                  cat /home/${VSCodeUser}/.bashrc
+
+          - action: aws:runShellScript
+            name: InstallEksctl
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023          
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  #!/bin/bash
+                  echo "=== Install eksctl ==="
+                  export ARCH=arm64
+                  export PLATFORM=$(uname -s)_$ARCH
+                  curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+                  tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm -f eksctl_$PLATFORM.tar.gz
+                  mv /tmp/eksctl /usr/local/bin
+                  echo "eksctl version"
+                  eksctl version
+
+          - action: aws:runShellScript
+            name: InstallHelmCLI
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023          
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  #!/bin/bash
+                  ## Install HELM v3.8
+                  echo "Installing HELM v3.8"
+                  curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+                  echo "helm version"
+                  helm version
+
+          - action: aws:runShellScript
+            name: CloneWorkshopRepository
+            precondition:
+              StringEquals:
+                - '{{ LinuxFlavor }}'
+                - al2023          
+            inputs:
+              timeoutSeconds: '600'
+              runCommand:
+                - !Sub |
+                  #!/bin/bash
+                  echo "Cloning/Downloading the Repo"
+                  mkdir -p /home/${VSCodeUser}/environment/fsx-workshop-on-eks
+                  chmod -R 777 /home/${VSCodeUser}/environment/fsx-workshop-on-eks 
+                  
+                  if [ -z "${Assets}" ]; then
+                      # Clone from github
+                      echo "Assets variable is blank. Proceeding with Git clone..."
+                      mkdir -p /home/${VSCodeUser}/environment/fsx-workshop-on-eks
+                      chmod -R 777 /home/${VSCodeUser}/environment/fsx-workshop-on-eks 
+                      git clone https://github.com/aws-samples/eks-fsx-workshop /home/${VSCodeUser}/environment/fsx-workshop-on-eks  
+                      # git clone https://github.com/git4example/eks-fsx-workshop /home/${VSCodeUser}/environment/fsx-workshop-on-eks 
+                      chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/environment/fsx-workshop-on-eks
+                  else
+                      # Download static assets from asset bucket
+                      echo "Assets variable is set. Proceeding with S3 sync..."
+                      echo "ASSET_BUCKET=${Assets}"
+                      export ASSET_BUCKET=${Assets}
+                      ASSET_BUCKET=$(echo $ASSET_BUCKET | sed 's/\/assets\///')
+                      ASSET_BUCKET=$ASSET_BUCKET/static
+                      
+                      aws s3 sync $ASSET_BUCKET/FSxCFN /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSxCFN --delete
+                      aws s3 sync $ASSET_BUCKET/eks /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/eks --delete
+                      aws s3 sync $ASSET_BUCKET/FSXWorkshopOnEKS.yaml /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSXWorkshopOnEKS.yaml --delete
+                      chown -R ${VSCodeUser}:${VSCodeUser} /home/${VSCodeUser}/environment
+                  fi
+                  
+  
+  RunCreatePrimaryEKSCluster:
+    DependsOn: [RunWorkshopPreparationDocument]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 1800
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref CreatePrimaryEKSCluster
+      DeleteDocumentName: !Ref DeletePrimaryEKSCluster
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${CreatePrimaryEKSCluster}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+      #Extra parameters here
+      VPCIdentifier: !Ref VPC
+      PublicSubnet01: !Ref PublicSubnet1
+      PublicSubnet02: !Ref PublicSubnet2
+      PrivateSubnet01: !Ref PrivateSubnet1
+      PrivateSubnet02: !Ref PrivateSubnet2
+      PrimaryRegion: !Sub "${AWS::Region}"
+      SecondaryRegion: !Ref SecondaryRegion
+       
+  CreatePrimaryEKSCluster:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command     
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command           
+        mainSteps:
+        - action: aws:runShellScript
+          name: CreatePrimaryEKSCluster
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                echo "Current Region is: {{ PrimaryRegion }}"
+                
+                CLUSTER_NAME="FSx-eks-cluster"
+                REGION={{ PrimaryRegion }}
+                
+                echo "Creating $CLUSTER_NAME in $REGION"
+                
+                CLUSTER_STATUS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --query "cluster.status" --output text 2>/dev/null)
+                
+                if [ -z "$CLUSTER_STATUS" ]; then
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION does not exist, hence creating ..."
+                  echo "EKS Cluster:$CLUSTER_NAME is yet to be created, now creating the EKS cluster"
+                  
+                  cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/eks
+                  
+                  # Update cluster configuration file
+                  sed -i "s/primary-region/{{ PrimaryRegion }}/g" cluster.yaml
+                  sed -i "s/vpc-id/{{ VPCIdentifier }}/g" cluster.yaml
+                  sed -i "s/public-subnet-1/{{ PublicSubnet01 }}/g" cluster.yaml
+                  sed -i "s/public-subnet-2/{{ PublicSubnet02 }}/g" cluster.yaml
+                  sed -i "s/private-subnet1/{{ PrivateSubnet01 }}/g" cluster.yaml
+                  sed -i "s/private-subnet2/{{ PrivateSubnet02 }}/g" cluster.yaml
+                  
+                  echo "Printing the Cluster File"
+                  cat cluster.yaml
+                  
+                  sed -i.bak -e 's/--EKS_VERSION--/${EKSClusterVersion}/' ./cluster.yaml
+                  eksctl create cluster -f ./cluster.yaml
+                else
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION already exists. Current status: $CLUSTER_STATUS"
+                fi
+                
+                echo "EKS cluster creation process completed."
+  
+  DeletePrimaryEKSCluster:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command             
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command  
+        mainSteps:
+        - action: aws:runShellScript
+          name: DeletePrimaryEKSCluster
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                # Delete EKS Cluster "FSx-eks-cluster"
+                CLUSTER_NAME="FSx-eks-cluster"
+                REGION={{ PrimaryRegion }}
+                
+                echo "Attempting to delete $CLUSTER_NAME in $REGION"
+                
+                CLUSTER_STATUS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --query "cluster.status" --output text 2>/dev/null)
+                
+                if [ -z "$CLUSTER_STATUS" ]; then
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION does not exist or has been deleted."
+                else
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION exists. Current status: $CLUSTER_STATUS"
+                  echo "Initiating cluster deletion..."
+                  eksctl delete cluster --name $CLUSTER_NAME --region $REGION --disable-nodegroup-eviction --force 
+                  echo "Cluster deletion command executed. This process may take several minutes to complete."
+                fi
+                
+                echo "EKS cluster deletion process completed."
+  
+  RunCreateS3BucketsAndReplicationRole:
+    DependsOn: [RunWorkshopPreparationDocument]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 900
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref CreateS3BucketsAndReplicationRole
+      DeleteDocumentName: !Ref DeleteS3bucketsforFSxLustre
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${CreateS3BucketsAndReplicationRole}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+      #Extra parameters here
+      VPCIdentifier: !Ref VPC
+      PublicSubnet01: !Ref PublicSubnet1
+      PublicSubnet02: !Ref PublicSubnet2
+      PrivateSubnet01: !Ref PrivateSubnet1
+      PrivateSubnet02: !Ref PrivateSubnet2
+      PrimaryRegion: !Sub "${AWS::Region}"
+      SecondaryRegion: !Ref SecondaryRegion
+       
+  CreateS3BucketsAndReplicationRole:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command   
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command            
+        mainSteps:
+        - action: aws:runShellScript
+          name: CreateS3BucketsAndReplicationRole
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                if [ $(aws s3 ls | awk '{print $3}' | grep ^fsx-lustre-bucket | wc -l) -eq 0 ]; then
+                  # Generate random string
+                  random=$(echo $RANDOM | md5sum | head -c 12; echo)
+                  echo "random=$random" >> /home/${VSCodeUser}/.bashrc
+                  
+                  cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSxCFN
+                  
+                  s3_bucket_name="fsx-lustre-bucket-$random"
+                  s3_2nd_bucket_name="fsx-lustre-bucket-2ndregion-$random"
+                                                  
+                  # Create Cross Region Bucket replication role
+                  echo "Creating IAM Role and Policy for S3 Cross Region Replication"
+                  iam_role_name="s3-crr-$random"
+                  sed -i "s/DOC-EXAMPLE-BUCKET1/$s3_bucket_name/g" S3ReplicationIAM.yaml
+                  sed -i "s/DOC-EXAMPLE-BUCKET2/$s3_2nd_bucket_name/g" S3ReplicationIAM.yaml  
+                  aws cloudformation create-stack --stack-name $iam_role_name \
+                    --region {{ PrimaryRegion }} \
+                    --template-body file://./S3ReplicationIAM.yaml \
+                    --parameters ParameterKey=IAMRoleName,ParameterValue=$iam_role_name \
+                    --capabilities CAPABILITY_NAMED_IAM
+                  
+                   # Create S3 bucket in 1st Region
+                  echo "Creating S3 bucket $s3_bucket_name"
+                  aws cloudformation create-stack --stack-name $s3_bucket_name \
+                    --region {{ PrimaryRegion }} \
+                    --template-body file://./S3Buckets.yaml \
+                    --parameters ParameterKey=S3BucketName,ParameterValue=$s3_bucket_name \
+                    --capabilities CAPABILITY_NAMED_IAM 
+
+                  # Create S3 bucket in 2nd Region
+                  echo "Creating S3 bucket $s3_2nd_bucket_name"
+                  aws cloudformation create-stack --stack-name $s3_2nd_bucket_name \
+                    --region {{ SecondaryRegion }} \
+                    --template-body file://./S3Buckets.yaml \
+                    --parameters ParameterKey=S3BucketName,ParameterValue=$s3_2nd_bucket_name \
+                    --capabilities CAPABILITY_NAMED_IAM
+                                    
+                fi
+    
+  DeleteS3bucketsforFSxLustre:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command   
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command            
+        mainSteps:
+        - action: aws:runShellScript
+          name: DeleteStacksWithRandomStrings
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                # Delete stacks with Random strings appended
+                # Read the random string from the user's .bashrc
+                random_value=$(sudo -u ${VSCodeUser} bash -c 'source ~/.bashrc && echo $random')
+                
+                # Check if we successfully retrieved the random string
+                if [ -n "$random_value" ]; then
+                  echo "Random string retrieved: $random_value"
+                  
+                  # Function to delete stack
+                  delete_stack() {
+                    local STACK_NAME=$1
+                    local REGION=$2
+                    echo "Deleting $STACK_NAME stack in $REGION"
+                    if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[].StackStatus' --output text &>/dev/null; then
+                      # Stack exists
+                      aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+                    else
+                      # Stack does not exist or has been deleted
+                      echo "Stack $STACK_NAME does not exist in region $REGION."
+                    fi
+                  }
+                  
+                  # Deleting "s3-crr-$random" stack
+                  delete_stack "s3-crr-$random_value" "{{ PrimaryRegion }}"
+
+                  # Deleting "fsx-lustre-bucket-$random" stack
+                  delete_stack "fsx-lustre-bucket-$random_value" "{{ PrimaryRegion }}"
+                  
+                  # Deleting "fsx-lustre-bucket-2ndregion-$random" stack
+                  delete_stack "fsx-lustre-bucket-2ndregion-$random_value" "{{ SecondaryRegion }}"
+                  
+                else
+                  echo "Failed to retrieve random string from /home/${VSCodeUser}/.bashrc"
+                fi
+  
+  RunCreateFSxLustreSecurityGroup:
+    DependsOn: [RunWorkshopPreparationDocument]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 900
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref CreateFSxLustreSecurityGroup
+      DeleteDocumentName: !Ref DeleteFSxLustreSecurityGroup
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${CreateFSxLustreSecurityGroup}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+      #Extra parameters here
+      VPCIdentifier: !Ref VPC
+      PublicSubnet01: !Ref PublicSubnet1
+      PublicSubnet02: !Ref PublicSubnet2
+      PrivateSubnet01: !Ref PrivateSubnet1
+      PrivateSubnet02: !Ref PrivateSubnet2
+      PrimaryRegion: !Sub "${AWS::Region}"
+      SecondaryRegion: !Ref SecondaryRegion
+
+  CreateFSxLustreSecurityGroup:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command           
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command    
+        mainSteps:
+        - action: aws:runShellScript
+          name: CreateFSxLustreSecurityGroup
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                # Security Group for Lustre
+                STACK_NAME="FSxL-SecurityGroup-01"
+                REGION={{ PrimaryRegion }}
+                VPC_ID={{ VPCIdentifier }}
+                cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSxCFN
+                
+                echo "Creating Security Group for FSx for Lustre in VPC $VPC_ID"
+                               
+                # Create CloudFormation stack
+                aws cloudformation create-stack \
+                  --stack-name $STACK_NAME \
+                  --region $REGION \
+                  --template-body file://./fsxL-SecurityGroup.yaml \
+                  --parameters \
+                  ParameterKey=VpcId,ParameterValue=$VPC_ID \
+                  ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup01 \
+                  --capabilities CAPABILITY_NAMED_IAM 
+
+  DeleteFSxLustreSecurityGroup:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command       
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command        
+        mainSteps:
+        - action: aws:runShellScript
+          name: DeleteFSxLustreSecurityGroup
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                # Deleting "FSxL-SecurityGroup-01" stack
+                STACK_NAME="FSxL-SecurityGroup-01"
+                REGION={{ PrimaryRegion }}
+                
+                echo "Deleting $STACK_NAME stack in $REGION"
+                
+                if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[].StackStatus' --output text &>/dev/null; then
+                  # Stack exists
+                  echo "Stack $STACK_NAME exists. Deleting..."
+                  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+                  echo "Delete request sent for stack $STACK_NAME"
+                else
+                  # Stack does not exist or has been deleted
+                  echo "Stack $STACK_NAME does not exist in region $REGION."
+                fi
+
+  RunCreateFSxOpenZFSSecurityGroup:
+    DependsOn: [RunWorkshopPreparationDocument]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 900
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref CreateFSxOpenZFSSecurityGroup
+      DeleteDocumentName: !Ref DeleteFSxOpenZFSSecurityGroup
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${CreateFSxOpenZFSSecurityGroup}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+      #Extra parameters here
+      VPCIdentifier: !Ref VPC
+      PublicSubnet01: !Ref PublicSubnet1
+      PublicSubnet02: !Ref PublicSubnet2
+      PrivateSubnet01: !Ref PrivateSubnet1
+      PrivateSubnet02: !Ref PrivateSubnet2
+      PrimaryRegion: !Sub "${AWS::Region}"
+      SecondaryRegion: !Ref SecondaryRegion
+       
+  CreateFSxOpenZFSSecurityGroup:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command  
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command             
+        mainSteps:
+        - action: aws:runShellScript
+          name: CreateFSxOpenZFSSecurityGroup
+          inputs:
+            runCommand:       
+              - !Sub |
+                #!/bin/bash
+                
+                STACK_NAME="fsxZ-SecurityGroup"
+                REGION={{ PrimaryRegion }}
+                VPC_ID={{ VPCIdentifier }}
+                cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSxCFN
+                
+                # Security Group for OpenZFS
+                echo "Creating Security Group for FSx for OpenZFS in VPC $VPC_ID"
+
+                # Create CloudFormation stack
+                aws cloudformation create-stack \
+                  --stack-name $STACK_NAME \
+                  --region $REGION \
+                  --template-body file://./fsxZ-SecurityGroup.yaml \
+                  --parameters \
+                  ParameterKey=VpcId,ParameterValue=$VPC_ID \
+                  ParameterKey=SecurityGroupName,ParameterValue=FSxZSecurityGroup \
+                  --capabilities CAPABILITY_NAMED_IAM 
+                  
+  DeleteFSxOpenZFSSecurityGroup:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command  
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command             
+        mainSteps:
+        - action: aws:runShellScript
+          name: DeleteFSxOpenZFSSecurityGroup
+          inputs:
+            runCommand:       
+              - !Sub |
+                #!/bin/bash
+                
+                STACK_NAME="fsxZ-SecurityGroup"
+                REGION={{ PrimaryRegion }}
+                
+                echo "Deleting $STACK_NAME stack in $REGION"
+                
+                if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[].StackStatus' --output text &>/dev/null; then
+                  # Stack exists
+                  echo "Stack $STACK_NAME exists. Initiating deletion..."
+                  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+                  echo "Deletion of stack $STACK_NAME initiated."
+                else
+                  # Stack does not exist or has been deleted
+                  echo "Stack $STACK_NAME does not exist in region $REGION."
+                fi
+                
+                echo "Cleanup process for $STACK_NAME completed."
+
+  RunCreateSecondaryRegionEKSCluster:
+    DependsOn: [RunWorkshopPreparationDocument]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 1800
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref CreateSecondaryRegionEKSCluster
+      DeleteDocumentName: !Ref CleanupSecondaryRegionResources
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${CreateSecondaryRegionEKSCluster}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+      #Extra parameters here
+      VPCIdentifier: !Ref VPC
+      PublicSubnet01: !Ref PublicSubnet1
+      PublicSubnet02: !Ref PublicSubnet2
+      PrivateSubnet01: !Ref PrivateSubnet1
+      PrivateSubnet02: !Ref PrivateSubnet2
+      PrimaryRegion: !Sub "${AWS::Region}"
+      SecondaryRegion: !Ref SecondaryRegion
+       
+  CreateSecondaryRegionEKSCluster:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command     
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command          
+        mainSteps:
+        - action: aws:runShellScript
+          name: CreateSecondaryRegionEKSCluster
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                CLUSTER_NAME="FSx-eks-cluster02"
+                REGION={{ SecondaryRegion }}
+                
+                echo "Creating $CLUSTER_NAME in $REGION"
+                
+                CLUSTER_STATUS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --query "cluster.status" --output text 2>/dev/null)
+                
+                if [ -z "$CLUSTER_STATUS" ]; then
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION does not exist, hence creating ..."
+                  
+                  eksctl create cluster \
+                    --name $CLUSTER_NAME \
+                    --region $REGION \
+                    --nodes=2 \
+                    --instance-types=c5.2xlarge \
+                    --version ${EKSClusterVersion}
+                  
+                  echo "Associating the OIDC Provider to EKS cluster $CLUSTER_NAME"
+                  eksctl utils associate-iam-oidc-provider \
+                    --cluster $CLUSTER_NAME \
+                    --region "$REGION" \
+                    --approve
+                else
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION already exists. Current status: $CLUSTER_STATUS"
+                fi
+
+        - action: aws:runShellScript
+          name: CreateSecondaryRegionFSxLustreSecurityGroup
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                # Create Security Groups for FSx for Lustre
+                
+                STACK_NAME="FSxL-SecurityGroup-02"
+                REGION={{ SecondaryRegion }}
+                CLUSTER_NAME="FSx-eks-cluster02"  # Ensure this matches the cluster name from the previous step
+                
+                # Get VPC ID from EKS cluster
+                VPC_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region "$REGION" --query "cluster.resourcesVpcConfig.vpcId" --output text)
+                
+                echo "Creating Security Groups for FSx for Lustre in region $REGION in VPC $VPC_ID"
+                
+                cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSxCFN
+                                
+                # Create CloudFormation stack
+                aws cloudformation create-stack \
+                  --stack-name "$STACK_NAME" \
+                  --region "$REGION" \
+                  --template-body file://./fsxL-SecurityGroup.yaml \
+                  --parameters \
+                  ParameterKey=VpcId,ParameterValue=$VPC_ID \
+                  ParameterKey=SecurityGroupName,ParameterValue=FSxLSecurityGroup02 \
+                  --capabilities CAPABILITY_NAMED_IAM
+                
+                echo "Security group creation initiated for FSx for Lustre in $REGION"
+
+        - action: aws:runShellScript
+          name: CreateIAMRoleForFSxCSIDriverSecondCluster
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/FSxCFN
+                
+                # Create IAM Role for Service Account
+                echo "Creating IAM Role for Service Account for FSx for Lustre 2nd Cluster"
+                
+                # In future To migrate on Pod Identity - currently fsx-csi-controller is not supporting it
+                policy_name="Amazon_2nd_FSx_Lustre_CSI_Driver"
+                CLUSTER_NAME="FSx-eks-cluster02"  # Ensure this matches the cluster name from the previous steps
+                REGION={{ SecondaryRegion }}
+                
+                # Check if policy exists
+                policy_arn=$(aws iam list-policies --output json | jq -r --arg name "$policy_name" '.Policies[] | select(.PolicyName == $name) | .Arn')
+                
+                if [ -z "$policy_arn" ]; then
+                  echo "Policy '$policy_name' does not exist in your account. Creating..."
+                  aws iam create-policy \
+                    --policy-name $policy_name \
+                    --region $REGION \
+                    --policy-document file://fsx-csi-driver.json
+                  
+                  # Get the ARN of the newly created policy
+                  policy_arn=$(aws iam list-policies --output json | jq -r --arg name "$policy_name" '.Policies[] | select(.PolicyName == $name) | .Arn')
+                else
+                  echo "Policy $policy_name found with ARN: $policy_arn"
+                fi
+                
+                # Create IAM service account
+                echo "Creating IAM service account for FSx CSI Driver"
+                eksctl create iamserviceaccount \
+                  --name fsx-csi-controller-sa \
+                  --namespace kube-system \
+                  --cluster $CLUSTER_NAME \
+                  --region $REGION \
+                  --attach-policy-arn $policy_arn \
+                  --approve 
+                
+                echo "IAM Role and Service Account creation completed for FSx for Lustre 2nd Cluster"
+        - action: aws:runShellScript
+          name: SetupPodIdentityForSecondCluster
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                CLUSTER_NAME="FSx-eks-cluster02"
+                REGION={{ SecondaryRegion }}
+                
+                echo "Setting up EKS Pod Identity for cluster $CLUSTER_NAME in $REGION"
+                
+                # Create eks-pod-identity-agent addon
+                echo "Creating eks-pod-identity-agent addon..."
+                eksctl create addon \
+                  --cluster $CLUSTER_NAME \
+                  --name eks-pod-identity-agent \
+                  --region $REGION
+                
+                echo "eks-pod-identity-agent addon created successfully"
+                
+                # The following lines are commented out but included here for future reference:
+                
+                # Create pod identity association
+                # Note: Uncomment and adjust the following lines when ready to use pod identity
+                #
+                # policy_name="Amazon_2nd_FSx_Lustre_CSI_Driver"
+                # policy_arn=$(aws iam list-policies --query "Policies[?PolicyName=='$policy_name'].Arn" --output text)
+                #
+                # if [ -n "$policy_arn" ]; then
+                #   echo "Creating pod identity association..."
+                #   eksctl create podidentityassociation \
+                #     --cluster $CLUSTER_NAME \
+                #     --service-account-name fsx-csi-controller-sa \
+                #     --namespace kube-system \
+                #     --region $REGION \
+                #     --permission-policy-arn $policy_arn
+                #   echo "Pod identity association created successfully"
+                # else
+                #   echo "Error: Policy $policy_name not found. Cannot create pod identity association."
+                # fi
+                
+                echo "EKS Pod Identity setup completed for cluster $CLUSTER_NAME"
+  
+  CleanupSecondaryRegionResources:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command       
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command        
+        mainSteps:
+        - action: aws:runShellScript
+          name: CleanupSecondaryRegionResources
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                CLUSTER_NAME="FSx-eks-cluster02"
+                REGION={{ SecondaryRegion }}
+                
+                # Delete EKS Cluster
+                echo "Deleting $CLUSTER_NAME in $REGION"
+                CLUSTER_STATUS=$(aws eks describe-cluster --name "$CLUSTER_NAME" --region "$REGION" --query "cluster.status" --output text 2>/dev/null)
+                if [ -z "$CLUSTER_STATUS" ]; then
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION does not exist or has been deleted."
+                else
+                  echo "EKS cluster $CLUSTER_NAME in region $REGION exists. Current status: $CLUSTER_STATUS"
+                  eksctl delete cluster --name $CLUSTER_NAME --region $REGION --disable-nodegroup-eviction --force 
+                fi
+                
+                # Delete "FSxL-SecurityGroup-02" stack
+                STACK_NAME="FSxL-SecurityGroup-02"
+                echo "Deleting $STACK_NAME stack in $REGION"
+                if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query 'Stacks[].StackStatus' --output text &>/dev/null; then
+                  aws cloudformation delete-stack --stack-name $STACK_NAME --region $REGION
+                  echo "$STACK_NAME stack in $REGION deletion initiated"
+                else
+                  echo "Stack $STACK_NAME does not exist in region $REGION."
+                fi
+                
+                # Delete IAM policy
+                policy_name="Amazon_2nd_FSx_Lustre_CSI_Driver"
+                policy_arn=$(aws iam list-policies --output json | jq -r --arg name "$policy_name" '.Policies[] | select(.PolicyName == $name) | .Arn')
+                if [ -z "$policy_arn" ]; then
+                  echo "Policy '$policy_name' does not exist in your account."
+                else
+                  echo "Policy $policy_name found with ARN: $policy_arn"
+                  echo "Deleting policy..."
+                  if aws iam delete-policy --policy-arn "$policy_arn"; then
+                    echo "Policy '$policy_name' has been successfully deleted."
+                  else
+                    echo "Failed to delete the policy. Please check if you have the necessary permissions."
+                  fi
+                fi
+                
+                echo "Cleanup of secondary region resources completed."
+
+  RunSetupFSxLustreStorageForSecondaryEKS:
+    DependsOn: [RunCreateSecondaryRegionEKSCluster]
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 900
+      InstanceId: !Ref VSCodeInstance
+      DocumentName: !Ref SetupFSxLustreStorageForSecondaryEKS
+      DeleteDocumentName: !Ref CleanupFSxLustreStorageForSecondaryEKS
+      MonitoringSQSQueue: !GetAtt SSMCommandMonitorQueue.QueueUrl
+      LambdaArn: !GetAtt RunSSMDocLambda.Arn
+      CloudWatchLogGroupName: !Sub /aws/ssm/${SetupFSxLustreStorageForSecondaryEKS}
+      VSCodePassword: !GetAtt SecretPlaintext.password
+      LinuxFlavor: !If [IsAL2023, 'al2023', 'ubuntu']
+      #Extra parameters here
+      VPCIdentifier: !Ref VPC
+      PublicSubnet01: !Ref PublicSubnet1
+      PublicSubnet02: !Ref PublicSubnet2
+      PrivateSubnet01: !Ref PrivateSubnet1
+      PrivateSubnet02: !Ref PrivateSubnet2
+      PrimaryRegion: !Sub "${AWS::Region}"
+      SecondaryRegion: !Ref SecondaryRegion
+       
+  SetupFSxLustreStorageForSecondaryEKS:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command       
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command        
+        mainSteps:
+        - action: aws:runShellScript
+          name: SetupFSxLustreStorageForSecondaryEKS
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/eks/FSxL
+                
+                CLUSTER_NAME="FSx-eks-cluster02"
+                REGION={{ SecondaryRegion }}
+                
+                echo "Retrieving necessary information..."
+                SECURITY_GROUP_ID=$(aws cloudformation describe-stacks --stack-name FSxL-SecurityGroup-02 --region $REGION --query "Stacks[0].Outputs[0].OutputValue" --output text)
+                S3_BUCKET=$(aws s3 ls | grep fsx-lustre-bucket-2ndregion | awk '{print $3}')
+                SUBNET_ID=$(aws eks describe-cluster --name $CLUSTER_NAME --region $REGION --query "cluster.resourcesVpcConfig.subnetIds[0]" --output text)
+                
+                # In future To migrate on Pod Identity - currently fsx-csi-controller is not supporting it
+                # To migrate on Pod Identity, we don't need to get role name for annotation 
+                STACK_NAME="eksctl-$CLUSTER_NAME-addon-iamserviceaccount-kube-system-fsx-csi-controller-sa"
+                ROLE_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query "Stacks[0].Outputs[0].OutputValue" --output text)
+                
+                echo "Updating kubeconfig..."
+                aws eks update-kubeconfig --name $CLUSTER_NAME --region $REGION
+                export KUBECONFIG="$KUBECONFIG:/root/.kube/config"
+                echo "KUBECONFIG: $KUBECONFIG"
+                echo "HOME: $HOME"
+                
+                echo "Checking kubectl configuration..."
+                kubectl version --short
+                kubectl config get-contexts
+                kubectl get nodes
+                
+                echo "Deploying CSI Driver for FSx Lustre..."
+                kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
+                
+                # In future To migrate on Pod Identity - currently fsx-csi-controller is not supporting it
+                # For pod identity we don't need annotation
+                echo "Annotating service account..."
+                kubectl annotate serviceaccount -n kube-system fsx-csi-controller-sa eks.amazonaws.com/role-arn=$ROLE_ARN --overwrite=true
+                
+                echo "Deploying Storage Class..."
+                sed -i "s/SUBNET_ID/$SUBNET_ID/g" fsxL-storage-class-secondary-region.yaml
+                sed -i "s/SECURITY_GROUP_ID/$SECURITY_GROUP_ID/g" fsxL-storage-class-secondary-region.yaml
+                sed -i "s/S3_BUCKET/$S3_BUCKET/g" fsxL-storage-class-secondary-region.yaml
+                kubectl apply -f fsxL-storage-class-secondary-region.yaml
+                
+                echo "Waiting for 10 seconds..."
+                sleep 10
+                
+                echo "Applying persistent volume claim..."
+                kubectl apply -f claim.yaml
+                
+                echo "FSx for Lustre CSI Driver configuration completed."
+
+  CleanupFSxLustreStorageForSecondaryEKS:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: "2.2"
+        description: Create Both EKS Cluster and FSxL S3 bucket, SG for OpenZFS
+        parameters:
+          LinuxFlavor:
+            type: String
+            default: 'al2023'
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+          PublicSubnet01:
+            type: String
+            description: Public Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PublicSubnet02:
+            type: String
+            description: Public Subnet 02 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet01:
+            type: String
+            description: Private Subnet 01 of the VPC for the EKS Cluster Control Plane
+          PrivateSubnet02:
+            type: String
+            description: Private Subnet 02 of the VPC for the EKS Cluster Control Plane
+          VPCIdentifier:
+            type: String
+            description: VPC ID
+          PrimaryRegion:
+            type: String
+            description: Primary Region Name to run the command  
+          SecondaryRegion:
+            type: String
+            description: Secondary Region Name to run the command  
+        mainSteps:
+        - action: aws:runShellScript
+          name: CleanupFSxLustreStorageForSecondaryEKS
+          inputs:
+            runCommand:
+              - !Sub |
+                #!/bin/bash
+                
+                cd /home/${VSCodeUser}/environment/fsx-workshop-on-eks/static/eks/FSxL
+                
+                CLUSTER_NAME="FSx-eks-cluster02"
+                REGION={{ SecondaryRegion }}
+                
+                echo "Updating kubeconfig for cluster $CLUSTER_NAME"
+                aws eks update-kubeconfig --name $CLUSTER_NAME --region $REGION
+                
+                export KUBECONFIG="$KUBECONFIG:/root/.kube/config"
+                echo "KUBECONFIG: $KUBECONFIG"
+                echo "HOME: $HOME"
+                
+                echo "Checking kubectl version and configuration"
+                kubectl version --short
+                kubectl config get-contexts
+                
+                echo "Verifying cluster nodes"
+                kubectl get nodes
+                
+                echo "Cleaning up FSx for Lustre resources"
+                
+                echo "Deleting FSx Lustre claim"
+                kubectl delete -f claim.yaml || echo "Failed to delete claim or claim doesn't exist"
+                
+                echo "Deleting FSx Lustre storage class"
+                kubectl delete -f fsxL-storage-class-secondary-region.yaml || echo "Failed to delete storage class or storage class doesn't exist"
+                
+                echo "Deleting CSI Driver for FSx Lustre"
+                kubectl delete -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master" || echo "Failed to delete CSI driver or driver doesn't exist"
+                
+                echo "Cleanup of FSx Lustre resources in cluster $CLUSTER_NAME completed"
+          
+Outputs:
+### VSCode Resources
+  URL:
+    Description: VSCode-Server URL
+    Value: !Sub https://${CloudFrontDistribution.DomainName}/?folder=/home/${VSCodeUser}/${HomeFolder}
+  Password:
+    Description: VSCode-Server Password
+    Value: !GetAtt SecretPlaintext.password
+## ------------ WORKSHOP INFRA ------------------------- 
+  VPCId:
+    Description: "VPCId of VPC"
+    Value:
+      Ref: "VPC"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-VPC"
+  PrivateSubnet1:
+    Description: "SubnetId of private subnet 1"
+    Value:
+      Ref: "PrivateSubnet1"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PrivateSubnet1"
+  PrivateSubnet2:
+    Description: "SubnetId of private subnet 2"
+    Value:
+      Ref: "PrivateSubnet2"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PrivateSubnet2"
+  PublicSubnet1:
+    Description: "SubnetId of public subnet 1"
+    Value:
+      Ref: "PublicSubnet1"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PublicSubnet1"
+  PublicSubnet2:
+    Description: "SubnetId of public subnet 2"
+    Value:
+      Ref: "PublicSubnet2"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PublicSubnet2"
+  PrivateRouteTable1:
+    Description: "Route table of private subnet"
+    Value:
+      Ref: "PrivateRouteTable1"
+    Export:
+      Name: !Sub "${AWS::Region}-${AWS::StackName}-PrivateRouteTable1"
+## FSxFilesystem Outputs
+  FSxFileSystemID:
+    Description: File System ID for FSx for NetAPP ONTAP
+    Value: !Ref FSxONTAP
+  SMFSxSecretManager:
+    Description: Secret Manager ARN for FSx for NetAPP ONTAP
+    Value: !Ref SMFsxAdminPassword
+  SMSVMSecretManager:
+    Description: Secret Manager ARN for FSx for NetAPP ONTAP Storage Virtual Machine (SVM)
+    Value: !Ref SMSVMAdminPassword
+  SecretsManagerIAMPolicyARN:
+    Description: Trident IAM Policy ARN for Trident Backend Configuration IAM Role for Service Account
+    Value: !Ref SecretsManagerIAMPolicy
