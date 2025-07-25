@@ -169,9 +169,9 @@ Once you finish with workshop and ready to clean up, visit this page to execute 
 This may take upto 30 mins : 
 
 ```bash
-aws cloudformation delete-stack --stack-name ${STACK_NAME} --region PRIMARY_REGION
+aws cloudformation delete-stack --stack-name ${STACK_NAME} --region $PRIMARY_REGION
 
 # Wait for stack deletion to complete
-aws cloudformation wait stack-delete-complete --stack-name ${STACK_NAME} --region PRIMARY_REGION
+aws cloudformation wait stack-delete-complete --stack-name ${STACK_NAME} --region $PRIMARY_REGION
 ```
 
