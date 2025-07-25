@@ -68,6 +68,7 @@ aws cloudformation create-stack \
   --template-url https://${ASSET_BUCKET}.s3.amazonaws.com/${ASSET_BUCKET_PATH}/static/FSXWorkshopOnEKS.yaml \
   --region $PRIMARY_REGION \
   --parameters \
+  ParameterKey=Assets,ParameterValue="" \
   ParameterKey=VSCodeUser,ParameterValue=participant \
   ParameterKey=InstanceName,ParameterValue=${VSINSTANCE_NAME} \
   ParameterKey=InstanceVolumeSize,ParameterValue=100 \
@@ -81,7 +82,7 @@ aws cloudformation create-stack \
   --capabilities CAPABILITY_NAMED_IAM
 
 # Wait for stack creation to complete
-aws cloudformation wait stack-create-complete --stack-name ${STACK_NAME} --region PRIMARY_REGION
+aws cloudformation wait stack-create-complete --stack-name ${STACK_NAME} --region $PRIMARY_REGION
 ```
 
 ### Part 4 : Access your workshop
