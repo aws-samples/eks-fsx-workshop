@@ -1,0 +1,16 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+    name: fsx-lustre-sc
+provisioner: fsx.csi.aws.com
+parameters:
+    subnetId: SUBNET_ID
+    securityGroupIds: SECURITY_GROUP_ID
+    s3ImportPath: s3://S3_BUCKET
+    s3ExportPath: s3://S3_BUCKET/export
+    autoImportPolicy: NEW_CHANGED_DELETED
+    deploymentType: PERSISTENT_1
+    perUnitStorageThroughput: "50"
+mountOptions:
+    - flock

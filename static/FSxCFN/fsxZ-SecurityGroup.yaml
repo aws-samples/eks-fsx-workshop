@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Security Groups For FSX OpenZFS"
+
+Parameters:
+  VpcId: 
+    Type: String
+    Description: "FSxZ VPC ID"
+  SecurityGroupName: 
+    Type: String
+    Description: "FSx OpenZFS Security Group Name"
+Resources:
+  FSxZSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Ref SecurityGroupName
+      VpcId: !Ref VpcId
+      GroupDescription: Security Group for FSx for OpenZFS Storage Access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 111
+          ToPort: 111
+          Description: TCP - Remote procedure call for NFS
+          #SourceSecurityGroupId: FSxZSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 111
+          ToPort: 111
+          Description: UDP - Remote procedure call for NFS 
+          #SourceSecurityGroupId: FSxZSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          Description: TCP - NFS server daemon
+          #SourceSecurityGroupId: FSxZSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 2049
+          ToPort: 2049
+          Description: UDP - NFS server daemon
+          #SourceSecurityGroupId: FSxZSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 20001
+          ToPort: 20003
+          Description: TCP - NFS mount, status monitor, and lock daemon
+          #SourceSecurityGroupId: FSxZSecurityGroupID
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          FromPort: 20001 
+          ToPort: 20003
+          Description: UDP - NFS mount, status monitor, and lock daemon
+          #SourceSecurityGroupId: FSxZSecurityGroupID
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 65535
+          Description: Allows OpenZFS traffic between FSx for OpenZFS file servers
+          CidrIp: 0.0.0.0/0
+Outputs:
+  SecurityGroupID:
+    Description: Security Group ID
+    Value: !Ref FSxZSecurityGroup

@@ -1,0 +1,107 @@
+version: 2.0
+
+defaultLocaleCode: en-US
+localeCodes:
+  - en-US
+
+awsAccountConfig:
+  accountSources:
+    - WorkshopStudio
+ 
+  # List of valid IAM service linked roles that need to be provisioned for accounts provisioned for this event.
+  # Service linked roles will be automatically created by Workshop Studio when provisioning accounts.
+  serviceLinkedRoles: 
+    - eks.amazonaws.com
+    - eks-nodegroup.amazonaws.com
+    - fsx.amazonaws.com
+    - ssm.amazonaws.com
+    - autoscaling.amazonaws.com
+    
+  # If set to `true`, an EC2 KeyPair called `ws-default-keypair` will be created in the AWS Account and the private key material
+  # will be made available to the Participant via the Participant APIs and Participant interface.
+  ec2KeyPair: true
+  
+  # Defines a set of accessible and deployable regions for events leveraging this content.
+  regionConfiguration:
+    deployableRegions:
+      # [OPTIONAL] Set of regions an event's cloudformation templates should be deployed to.
+      # Note: Only 1 deployment regions is supported currently. Meaning no more than 1 region can be required.
+      #required:
+      #  - us-east-1
+
+      # [OPTIONAL] Set of regions an event's cloudformation templates should be deployed to as a recommendation.
+      #recommended:
+      #  - us-east-1
+    
+      # [OPTIONAL] Set of regions an event's cloudformation templates could be deployed to as optional.
+      optional:
+        #- us-east-2
+        - us-east-1
+        - us-west-1
+        - us-west-2
+        - ap-southeast-2
+        - ap-southeast-1
+        #- af-south-1
+        #- ap-east-1
+        #- ap-south-2
+        - ap-south-1
+        #- ap-northeast-3
+        - ap-northeast-2
+        - ap-northeast-1
+        #- ca-central-1
+        #- eu-central-1
+        - eu-west-1
+        - eu-west-2
+        #- eu-south-1
+        #- eu-west-3
+        #- eu-south-2
+        #- eu-north-1
+
+
+    # The minimum number of regions an event operator must choose. Valid range: 1 to 3
+    minAccessibleRegions: 2
+
+    # The maximum number of regions an event operator can choose. Valid range: 1 to 3
+    maxAccessibleRegions: 2
+
+    # Regions defined under `accessibleRegions` are regions that can be made accessible to Participants.
+    # Note: No resources will be deployed to these regions by Workshop Studio.
+    # Note: Although all keys below are optional, you must define at least one of the three keys.
+    accessibleRegions:
+
+      # [OPTIONAL] Set of regions an event's provisioned account must have access to.
+      required:
+        - us-east-2
+        #- us-west-2
+
+      # [OPTIONAL] Set of regions that should be accessible by an event's provisioned account as a recommendation.
+      recommended:
+        - us-east-2
+
+      # [OPTIONAL] Set of regions an event's cloudformation templates could be deployed to as optional.
+      optional:
+        - us-east-2
+        #- us-west-2
+  
+  # The following configuration is specific to the ParticipantRole's scoped permissions.
+  # This role is assumed by Participants when accessing an account provisioned by Workshop Studio.
+  participantRole:
+    managedPolicies:
+      #- "arn:aws:iam::aws:policy/IAMFullAccess"
+      - "arn:aws:iam::aws:policy/AdministratorAccess"
+      #- "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      #- "arn:aws:iam::aws:policy/AmazonFSxFullAccess"
+      #- "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
+      #- arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+      #- arn:aws:iam::aws:policy/AmazonEC2FullAccess
+      #- arn:aws:iam::aws:policy/job-function/SystemAdministrator
+      #- arn:aws:iam::aws:policy/AWSCloud9Administrator
+
+infrastructure:
+  cloudformationTemplates:
+    - templateLocation: static/FSXWorkshopOnEKS.yaml
+      label: FSX Workshop On EKS
+      parameters:
+        - templateParameter: Assets
+          defaultValue: "s3://{{.AssetsBucketName}}/{{.AssetsBucketPrefix}}"
+
